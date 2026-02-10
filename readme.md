@@ -1,29 +1,25 @@
-# 🧠 Autonomous QA Agent
+# 🤖 QA Agent: Self-Driving Test Engineer
 
-An AI-powered Quality Assurance agent that reads specs (or bugs/logs), plans test steps using LLMs, runs them (via pytest/playwright/API), logs results, and files bugs — all autonomously.
-
----
-
-## 🚀 Features
-
-- ✅ LLM-based test planning + codegen
-- ✅ Pytest + Playwright runner integration
-- ✅ Slack alerts on failures
-- ✅ Auto-ingestion from GitHub, Jira, logs
-- ✅ Auto-bug filing (Jira/GitHub)
-- ✅ PDF + HTML reports
-- ✅ Prometheus + Grafana support
-- ✅ ECS + Lambda deploy templates
+AI-powered Quality Assurance Agent that plans, writes, executes, and verifies tests — with zero manual effort.
 
 ---
 
-## 📁 Folder Structure
+## 💡 Features
 
-See architecture summary [above](#final-project-structure-summary-post-ingestion--slack--llm-expansion).
+- 🧠 Auto-generates tests from natural language spec
+- 🧪 Runs Pytest, Playwright, and API validations
+- 🧾 Verifies bugs and files structured bug reports
+- 🕵️‍♀️ Ingests logs, Jira/GitHub issues, Prometheus alerts
+- ⚙️ FastAPI wrapper + CLI
+- 📤 Slack-triggerable: `/qa-test` → runs a plan
+- 🧩 Optional LLM: auto-spec from logs (`llm_utils.py`)
+- 🚀 ECS/Lambda auto-deployment via GitHub Actions
 
 ---
 
-## ⚙️ Run (Locally)
+## 📦 Installation
 
 ```bash
-python main.py --spec "Test login with invalid password" --html --trace
+git clone https://github.com/Arun-Engineer/qa-agent.git
+cd qa-agent
+pip install -r requirements.txt
