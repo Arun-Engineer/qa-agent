@@ -1,0 +1,121 @@
+{
+  "timestamp": "20260210_153654",
+  "spec": "Test login failure",
+  "plan": {
+    "goal": "Verify the login system correctly handles failure scenarios",
+    "assumptions": [
+      "Login page is accessible at /login",
+      "System responds with error message for failed login attempts",
+      "User should remain on the login page on failure"
+    ],
+    "steps": [
+      {
+        "tool": "playwright_runner",
+        "args": {
+          "path": "tests/test_login_ui_negative.py",
+          "description": "Attempt to log in with invalid credentials and verify the error message is displayed",
+          "priority": "P0",
+          "severity": "high",
+          "tags": [
+            "login",
+            "negative",
+            "ui"
+          ],
+          "requires_auth": false,
+          "linked_requirements": [
+            "REQ-AUTH-UI-001"
+          ],
+          "base_url": "https://example.com",
+          "trace": false
+        }
+      },
+      {
+        "tool": "pytest_runner",
+        "args": {
+          "path": "tests/test_login_api_invalid.py",
+          "description": "POST /login with invalid credentials and check for correct error response",
+          "priority": "P0",
+          "severity": "critical",
+          "tags": [
+            "login",
+            "negative",
+            "api"
+          ],
+          "requires_auth": false,
+          "linked_requirements": [
+            "REQ-AUTH-API-001"
+          ],
+          "base_url": "https://api.example.com",
+          "data": {
+            "email": "invalid@example.com",
+            "password": "wrong"
+          }
+        }
+      }
+    ]
+  },
+  "results": [
+    {
+      "step": {
+        "tool": "playwright_runner",
+        "args": {
+          "path": "tests/test_login_ui_negative.py",
+          "description": "Attempt to log in with invalid credentials and verify the error message is displayed",
+          "priority": "P0",
+          "severity": "high",
+          "tags": [
+            "login",
+            "negative",
+            "ui"
+          ],
+          "requires_auth": false,
+          "linked_requirements": [
+            "REQ-AUTH-UI-001"
+          ],
+          "base_url": "https://example.com",
+          "trace": false
+        }
+      },
+      "result": {
+        "status": "error",
+        "error": "[WinError 2] The system cannot find the file specified"
+      }
+    },
+    {
+      "step": {
+        "tool": "pytest_runner",
+        "args": {
+          "path": "tests/test_login_api_invalid.py",
+          "description": "POST /login with invalid credentials and check for correct error response",
+          "priority": "P0",
+          "severity": "critical",
+          "tags": [
+            "login",
+            "negative",
+            "api"
+          ],
+          "requires_auth": false,
+          "linked_requirements": [
+            "REQ-AUTH-API-001"
+          ],
+          "base_url": "https://api.example.com",
+          "data": {
+            "email": "invalid@example.com",
+            "password": "wrong"
+          }
+        }
+      },
+      "result": {
+        "code": 4,
+        "stdout": "",
+        "stderr": "ERROR: usage: pytest [options] [file_or_dir] [file_or_dir] [...]\npytest: error: unrecognized arguments: --json-report\n  inifile: None\n  rootdir: D:\\Automation\\qa_agent\n\n",
+        "summary": {
+          "passed": 0,
+          "failed": 0,
+          "skipped": 0,
+          "total": 0
+        }
+      }
+    }
+  ]
+}
