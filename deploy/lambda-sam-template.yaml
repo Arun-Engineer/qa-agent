@@ -1,0 +1,32 @@
+# lambda-sam-template.yaml
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  QA Agent - FastAPI Lambda SAM
+
+Globals:
+  Function:
+    Timeout: 300
+    MemorySize: 1024
+
+Resources:
+  QaAgentFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: app.lambda_handler
+      Runtime: python3.11
+      Events:
+        QaApi:
+          Type: Api
+          Properties:
+            Path: /qa
+            Method: POST
+      Environment:
+        Variables:
+          ENV: "lambda"
+
+Outputs:
+  QaAgentApi:
+    Description: "API Gateway endpoint URL for QA Agent"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/qa"

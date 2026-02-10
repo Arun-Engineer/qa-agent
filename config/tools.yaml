@@ -1,0 +1,7 @@
+tools:
+  - name: playwright_runner
+    condition: "step.tool == 'ui'"
+  - name: pytest_runner
+    condition: "step.tool == 'api'"
+  - name: bug_reporter
+    condition: "output.failed"

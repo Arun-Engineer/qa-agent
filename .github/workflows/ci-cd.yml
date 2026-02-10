@@ -1,0 +1,40 @@
+name: Build & Deploy QA Agent
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      AWS_REGION: ap-south-1
+      ECR_REPO: 055069000210.dkr.ecr.ap-south-1.amazonaws.com/qa-agent-demo
+      IMAGE_TAG: latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Docker
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build and push Docker image
+        run: |
+          docker build -t $ECR_REPO:$IMAGE_TAG .
+          docker push $ECR_REPO:$IMAGE_TAG
+
+      - name: Deploy via AWS CDK
+        run: |
+          npm install -g aws-cdk
+          cd infra/ecs-cdk/
+          cdk deploy --require-approval never
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ env.AWS_REGION }}
