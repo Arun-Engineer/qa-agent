@@ -1,7 +1,7 @@
 # main_api.py
 from fastapi import FastAPI, Request
 from pydantic import BaseModel
-from agent_runner import run_agent_from_spec
+from main import run_agent_from_spec
 
 app = FastAPI()
 

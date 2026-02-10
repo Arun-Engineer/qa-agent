@@ -5,31 +5,39 @@ from openai import OpenAI
 from pathlib import Path
 
 class Planner:
-    def __init__(self, model="gpt-4", prompt_path="config/prompts/generate_tests.md"):
-        self.prompt = Path(prompt_path).read_text()
-        self.llm = OpenAI(model=model)
+
+    def __init__(
+            self,
+            model="gpt-4o-mini",
+            prompt_path="config/prompts/generate_tests.md"
+    ):
+        path = Path(prompt_path)
+        if not path.exists():
+            raise FileNotFoundError(f"Missing prompt file: {path}")
+        self.prompt = path.read_text(encoding="utf-8")
+        self.model = model
+        self.client = OpenAI()
 
     def generate_plan(self, spec: str) -> dict:
-        messages = [
-            {"role": "system", "content": self.prompt},
-            {"role": "user", "content": spec}
-        ]
         try:
-            response = self.llm.chat.completions.create(
-                messages=messages,
-                response_format="json"
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": self.prompt},
+                    {"role": "user", "content": spec}
+                ],
+                response_format={"type": "json_object"}
             )
-            return self._parse_response(response)
+            return json.loads(response.choices[0].message.content)
         except Exception as e:
             return {"error": str(e)}
 
     def _parse_response(self, response) -> dict:
-        content = response.choices[0].message.content.strip()
+        content = response.content.strip()
         try:
             return json.loads(content)
         except json.JSONDecodeError:
             return {"error": "Invalid JSON from LLM", "raw": content}
-
 
 if __name__ == "__main__":
     import argparse
