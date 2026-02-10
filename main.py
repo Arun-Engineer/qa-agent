@@ -10,7 +10,8 @@ from agent.planner import Planner
 from agent.tools import pytest_runner, playwright_runner, api_caller, bug_reporter
 from agent.codegen.generator import TestGenerator
 from agent.integrations.slack_notifier import send_slack_alert
-from agent import memory
+from agent.utils import memory as default_memory
+from agent.extenstions import vector_memory
 
 def run_agent_from_spec(spec: str, html: bool = False, trace: bool = False):
     planner = Planner()
@@ -29,6 +30,14 @@ def run_agent_from_spec(spec: str, html: bool = False, trace: bool = False):
 
     save_logs(spec, plan, results)
 
+def filter_args(func, args_dict):
+    """
+    Pass only supported kwargs to tool functions
+    """
+    import inspect
+    sig = inspect.signature(func)
+    allowed = sig.parameters.keys()
+    return {k: v for k, v in args_dict.items() if k in allowed}
 
 def execute_step(step, html=False, trace=False):
     tool_name = step.get("tool")
@@ -44,16 +53,43 @@ def execute_step(step, html=False, trace=False):
             rprint(f"[green]📄 Generated and saved: {saved_path}[/green]")
 
     if tool_name == "pytest_runner":
-        result = pytest_runner.run_pytest(**tool_args)
+        safe_args = filter_args(pytest_runner.run_pytest, tool_args)
+        result = pytest_runner.run_pytest(**safe_args)
         if html and Path("report.html").exists():
             webbrowser.open("report.html")
         return result
 
+
     elif tool_name == "playwright_runner":
+
         tool_args["trace"] = trace
-        result = playwright_runner.run_playwright(**tool_args)
+
+        safe_args = filter_args(playwright_runner.run_playwright, tool_args)
+        result = playwright_runner.run_playwright(**safe_args)
+
         if result.get("status") == "failed" and result.get("screenshot"):
-            memory.save_artifact("playwright_failure", result["screenshot"].encode(), ext=".png")
+            # Save artifact locally (short-term)
+
+            default_memory.save_artifact(
+
+                "playwright_failure",
+
+                result["screenshot"].encode(),
+
+                ext=".png"
+
+            )
+
+            # Store semantic memory (long-term vector)
+
+            vector_memory.store_memory(
+
+                text=f"Playwright failure: {step}",
+
+                metadata={"tool": "playwright_runner"}
+
+            )
+
         return result
 
     elif tool_name == "api_caller":
