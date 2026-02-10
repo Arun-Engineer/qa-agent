@@ -12,6 +12,41 @@ from agent.codegen.generator import TestGenerator
 from agent.integrations.slack_notifier import send_slack_alert
 from agent.utils import memory as default_memory
 from agent.extenstions import vector_memory
+from agent.ticket_router import fetch_ticket
+from openai import OpenAI
+
+def explain_mode(question: str):
+    """
+    QA Tutor Mode
+    Provides conceptual explanations instead of executing tests
+    """
+
+    client = OpenAI()
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a highly experienced Senior QA Architect. "
+                        "Explain software testing concepts clearly, practically, "
+                        "and concisely with real-world examples."
+                    ),
+                },
+                {"role": "user", "content": question},
+            ],
+            temperature=0.3,
+        )
+
+        answer = response.choices[0].message.content
+        print("\n🧠 QA Explanation:\n")
+        print(answer)
+        print()
+
+    except Exception as e:
+        print("❌ Explain mode failed:", e)
 
 def run_agent_from_spec(spec: str, html: bool = False, trace: bool = False):
     planner = Planner()
@@ -96,7 +131,9 @@ def execute_step(step, html=False, trace=False):
         return api_caller.call_api(**tool_args)
 
     elif tool_name == "bug_reporter":
-        return bug_reporter.file_bug(**tool_args)
+        safe_args = {k: v for k, v in tool_args.items() if k in ["title", "severity", "details", "steps_to_reproduce"]}
+        return bug_reporter.file_bug(**safe_args)
+
 
     else:
         return {"error": f"Unsupported tool: {tool_name}"}
@@ -155,20 +192,34 @@ def main():
     parser = argparse.ArgumentParser(description="QA Agent CLI")
     parser.add_argument("--spec", type=str, help="Test spec as input text")
     parser.add_argument("--file", type=str, help="Path to file containing test spec")
+    parser.add_argument("--ticket", type=str, help="Ticket ID or URL from Jira, GitHub, or Azure DevOps")
+    parser.add_argument("--explain", type=str, help="Ask QA theory question")
     parser.add_argument("--html", action="store_true", help="Auto-open pytest HTML report if available")
     parser.add_argument("--trace", action="store_true", help="Enable trace logging for browser-based steps")
     args = parser.parse_args()
 
+    # 📚 Explain mode
+    if args.explain:
+        explain_mode(args.explain)
+        return
+
+    # 📄 Ticket mode
+    if args.ticket:
+        ticket_data = fetch_ticket(args.ticket)
+        composed_spec = f"{ticket_data['title']}\n\n{ticket_data['description']}\n\n{ticket_data.get('repro_steps', '')}"
+        run_agent_from_spec(composed_spec, html=args.html, trace=args.trace)
+        return
+
+    # 📝 Spec or file
     if args.spec:
         spec = args.spec
     elif args.file:
-        spec = Path(args.file).read_text()
+        spec = Path(args.file).read_text(encoding="utf-8")
     else:
-        rprint("[red]❌ Please provide either --spec or --file[/red]")
+        rprint("[red]❌ Please provide one of: --spec, --file, or --ticket[/red]")
         return
 
     run_agent_from_spec(spec, html=args.html, trace=args.trace)
-
 
 if __name__ == "__main__":
     main()

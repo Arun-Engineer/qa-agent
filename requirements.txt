@@ -11,4 +11,7 @@ PyYAML
 GitPython
 fpdf
 rich
+faiss
+faiss-cpu
+sentence_transformers
 boto3  # For future AWS features

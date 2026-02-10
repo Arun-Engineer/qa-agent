@@ -1,0 +1,11 @@
+{
+  "azure": {
+    "base_url": "https://dev.azure.com/JPL-JioMart",
+    "project": "JioMart",
+    "token": "YOUR_AZURE_PAT"
+  },
+  "github": {
+    "repo": "yourusername/yourrepo",
+    "token": "ghp_XXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+  }
+}
