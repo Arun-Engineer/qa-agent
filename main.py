@@ -1,6 +1,7 @@
 import argparse
 import json
 import datetime
+import os
 import webbrowser
 from pathlib import Path
 from rich import print as rprint
@@ -15,55 +16,105 @@ from agent.extenstions import vector_memory
 from agent.ticket_router import fetch_ticket
 from openai import OpenAI
 
-def explain_mode(question: str):
-    """
-    QA Tutor Mode
-    Provides conceptual explanations instead of executing tests
-    """
+def ensure_conftest_base_url():
+    cf = Path("conftest.py")
+    if cf.exists():
+        return
+    cf.write_text(
+        'import os\n'
+        'import pytest\n\n'
+        '@pytest.fixture(scope="session")\n'
+        'def base_url() -> str:\n'
+        '    url = (os.getenv("BASE_URL") or os.getenv("APP_BASE_URL") or "").strip()\n'
+        '    if not url:\n'
+        '        url = "https://example.com"\n'
+        '    return url.rstrip("/")\n',
+        encoding="utf-8"
+    )
 
-    client = OpenAI()
 
-    try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "You are a highly experienced Senior QA Architect. "
-                        "Explain software testing concepts clearly, practically, "
-                        "and concisely with real-world examples."
-                    ),
-                },
-                {"role": "user", "content": question},
-            ],
-            temperature=0.3,
-        )
+def explain_mode(question: str) -> str:
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY is missing")
 
-        answer = response.choices[0].message.content
-        print("\n🧠 QA Explanation:\n")
-        print(answer)
-        print()
+    client = OpenAI(api_key=api_key)
 
-    except Exception as e:
-        print("❌ Explain mode failed:", e)
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are a highly experienced Senior QA Architect. "
+                    "Explain software testing concepts clearly, practically, "
+                    "and concisely with real-world examples."
+                ),
+            },
+            {"role": "user", "content": question},
+        ],
+        temperature=0.3,
+    )
+
+    answer = (response.choices[0].message.content or "").strip()
+    if not answer:
+        raise RuntimeError("Model returned empty answer")
+
+    return answer
+
+def save_run_history(run_data):
+    path = Path("data/runs.json")
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    if path.exists():
+        existing = json.loads(path.read_text())
+    else:
+        existing = []
+
+    existing.append(run_data)
+    path.write_text(json.dumps(existing, indent=2))
+
 
 def run_agent_from_spec(spec: str, html: bool = False, trace: bool = False):
     planner = Planner()
     plan = planner.generate_plan(spec)
 
     if "steps" not in plan:
-        rprint("[red]❌ Plan generation failed:[/red]", plan)
-        return
+        return {"status": "failed", "error": plan}
 
-    results = []
-    for idx, step in enumerate(plan["steps"], 1):
-        rprint(f"\n[bold cyan]🔧 Step {idx}:[/bold cyan] {step['tool']} | Args: {step['args']}")
-        result = execute_step(step, html=html, trace=trace)
-        results.append({"step": step, "result": result})
-        print_result_summary(result)
+    detailed_results = []
+    passed = 0
+    failed = 0
 
-    save_logs(spec, plan, results)
+    for step in plan["steps"]:
+        result = execute_step(step, spec=spec,html=html, trace=trace)
+
+        detailed_results.append({
+            "step": step,
+            "result": result
+        })
+
+        if result.get("summary"):
+            s = result["summary"]
+            passed += s.get("passed", 0)
+            failed += s.get("failed", 0)
+
+    response = {
+        "status": "completed",
+        "goal": plan.get("goal"),
+        "total_steps": len(plan["steps"]),
+        "passed": passed,
+        "failed": failed,
+        "timestamp": datetime.datetime.utcnow().isoformat()
+    }
+
+    # Save summary for dashboard
+    save_run_history(response)
+
+    # Save detailed logs + PDF
+    save_logs(spec, plan, detailed_results)
+
+    return response
 
 def filter_args(func, args_dict):
     """
@@ -74,69 +125,138 @@ def filter_args(func, args_dict):
     allowed = sig.parameters.keys()
     return {k: v for k, v in args_dict.items() if k in allowed}
 
-def execute_step(step, html=False, trace=False):
+def execute_step(step, spec, html=False, trace=False):
     tool_name = step.get("tool")
-    tool_args = step.get("args", {})
+    tool_args = step.get("args", {}) or {}
+
+    # -----------------------------
+    # 1) Generate/Overwrite tests
+    # -----------------------------
+    should_regenerate = False
+    path = None
 
     if tool_name in ["pytest_runner", "playwright_runner"] and "path" in tool_args:
         path = Path(tool_args["path"])
-        if not path.exists():
-            rprint(f"[yellow]⚠️  Test file missing: {path} — generating...[/yellow]")
+
+        # Force overwrite for generated tests so old broken files don't keep running
+        should_regenerate = ("tests" in path.parts and "generated" in path.parts)
+
+        if should_regenerate or not path.exists():
+            rprint(f"[yellow]⚠️  Generating test file: {path}[/yellow]")
             codegen = TestGenerator()
-            test_code = codegen.generate_test_code(step)
+            # pass spec + step so generator can produce correct UI/API test
+            test_code = codegen.generate_test_code(step=step, spec=spec)
             saved_path = codegen.write_test_file(test_code, path)
             rprint(f"[green]📄 Generated and saved: {saved_path}[/green]")
 
-    if tool_name == "pytest_runner":
-        safe_args = filter_args(pytest_runner.run_pytest, tool_args)
-        result = pytest_runner.run_pytest(**safe_args)
-        if html and Path("report.html").exists():
-            webbrowser.open("report.html")
-        return result
+    # -----------------------------
+    # helper to run selected tool
+    # -----------------------------
+    def _run_tool():
+        if tool_name == "pytest_runner":
+            safe_args = filter_args(pytest_runner.run_pytest, tool_args)
+            return pytest_runner.run_pytest(**safe_args)
 
+        if tool_name == "playwright_runner":
+            # bridge step.args.base_url -> pytest-playwright base_url fixture via env
+            step_url = (tool_args.get("base_url") or "").strip()
+            if step_url:
+                step_url = step_url.rstrip("/")
+                os.environ["BASE_URL"] = step_url
+                os.environ["APP_BASE_URL"] = step_url
 
-    elif tool_name == "playwright_runner":
+            ensure_conftest_base_url()
 
-        tool_args["trace"] = trace
+            tool_args["trace"] = trace
+            safe_args = filter_args(playwright_runner.run_playwright, tool_args)
+            return playwright_runner.run_playwright(**safe_args)
 
-        safe_args = filter_args(playwright_runner.run_playwright, tool_args)
-        result = playwright_runner.run_playwright(**safe_args)
+        if tool_name == "api_caller":
+            return api_caller.call_api(**tool_args)
 
-        if result.get("status") == "failed" and result.get("screenshot"):
-            # Save artifact locally (short-term)
+        if tool_name == "bug_reporter":
+            safe_args = {k: v for k, v in tool_args.items()
+                         if k in ["title", "severity", "details", "steps_to_reproduce"]}
+            return bug_reporter.file_bug(**safe_args)
 
-            default_memory.save_artifact(
+        return {"status": "error", "error": f"Unsupported tool: {tool_name}"}
 
-                "playwright_failure",
+    # -----------------------------
+    # 2) Run tool
+    # -----------------------------
+    result = _run_tool()
 
-                result["screenshot"].encode(),
+    # open report if requested
+    if tool_name == "pytest_runner" and html and Path("report.html").exists():
+        webbrowser.open("report.html")
 
-                ext=".png"
+    # -----------------------------
+    # 3) Playwright failure capture
+    # -----------------------------
+    if tool_name == "playwright_runner":
+        if result.get("status") in ["failed", "error"] and result.get("screenshot"):
+            try:
+                default_memory.save_artifact(
+                    "playwright_failure",
+                    result["screenshot"].encode(),
+                    ext=".png",
+                )
+            except Exception:
+                pass
 
-            )
+            try:
+                vector_memory.store_memory(
+                    text=f"Playwright failure: {step}\nError: {result.get('error','')}",
+                    metadata={"tool": "playwright_runner"},
+                )
+            except Exception:
+                pass
 
-            # Store semantic memory (long-term vector)
+    # -----------------------------
+    # 4) Auto-repair (regen once)
+    #    only for generated tests
+    # -----------------------------
+    if should_regenerate and path is not None:
+        fixable_patterns = (
+            "ScopeMismatch",
+            'Fixture "base_url" called directly',
+            "SyntaxError",
+            "IndentationError",
+            "NameError",
+        )
+        stdout = (result.get("stdout") or "")
+        stderr = (result.get("stderr") or "")
+        err_text = (result.get("error") or "")
+        combined = f"{stdout}\n{stderr}\n{err_text}"
 
-            vector_memory.store_memory(
+        if any(p in combined for p in fixable_patterns):
+            rprint("[yellow]🔁 Auto-repairing generated test once...[/yellow]")
+            codegen = TestGenerator()
+            # Give the failure back to generator as feedback
+            repaired_code = codegen.generate_test_code(step=step, spec=spec, fix_error=combined)
+            codegen.write_test_file(repaired_code, path)
+            result = _run_tool()
 
-                text=f"Playwright failure: {step}",
+            # If it's Playwright and failed again, capture again
+            if tool_name == "playwright_runner":
+                if result.get("status") in ["failed", "error"] and result.get("screenshot"):
+                    try:
+                        default_memory.save_artifact(
+                            "playwright_failure",
+                            result["screenshot"].encode(),
+                            ext=".png",
+                        )
+                    except Exception:
+                        pass
+                    try:
+                        vector_memory.store_memory(
+                            text=f"Playwright failure after auto-repair: {step}\nError: {result.get('error','')}",
+                            metadata={"tool": "playwright_runner"},
+                        )
+                    except Exception:
+                        pass
 
-                metadata={"tool": "playwright_runner"}
-
-            )
-
-        return result
-
-    elif tool_name == "api_caller":
-        return api_caller.call_api(**tool_args)
-
-    elif tool_name == "bug_reporter":
-        safe_args = {k: v for k, v in tool_args.items() if k in ["title", "severity", "details", "steps_to_reproduce"]}
-        return bug_reporter.file_bug(**safe_args)
-
-
-    else:
-        return {"error": f"Unsupported tool: {tool_name}"}
+    return result
 
 
 def save_logs(spec, plan, results):

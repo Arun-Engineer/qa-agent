@@ -1,0 +1,607 @@
+{
+  "timestamp": "20260215_130241_651887",
+  "spec": "Test valid login on https://opensource-demo.orangehrmlive.com\\\\n and verify message stays on login page",
+  "plan": {
+    "goal": "Test valid login and verify message stays on login page",
+    "assumptions": [
+      "The login page is accessible at the provided URL.",
+      "The application will display an error message for invalid login attempts."
+    ],
+    "steps": [
+      {
+        "tool": "playwright_runner",
+        "args": {
+          "path": "tests/login_test.py",
+          "description": "Test valid login and verify message stays on login page",
+          "priority": "P1",
+          "severity": "high",
+          "tags": [
+            "ui",
+            "positive",
+            "negative",
+            "state"
+          ],
+          "requires_auth": false,
+          "linked_requirements": [
+            "REQ-001"
+          ],
+          "data": [
+            {
+              "name": "valid_login",
+              "techniques": [
+                "ecp"
+              ],
+              "inputs": {
+                "username": "Admin",
+                "password": "admin123"
+              },
+              "expected": {
+                "outcome": "success",
+                "status_code": 200,
+                "url_contains": "/dashboard",
+                "error_visible": false,
+                "error_any_of": [],
+                "stays_on_page": false
+              }
+            },
+            {
+              "name": "invalid_username",
+              "techniques": [
+                "ecp",
+                "error_guessing"
+              ],
+              "inputs": {
+                "username": "InvalidUser",
+                "password": "admin123"
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid credentials"
+                ],
+                "stays_on_page": true
+              }
+            },
+            {
+              "name": "invalid_password",
+              "techniques": [
+                "ecp",
+                "error_guessing"
+              ],
+              "inputs": {
+                "username": "Admin",
+                "password": "wrongpassword"
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid credentials"
+                ],
+                "stays_on_page": true
+              }
+            },
+            {
+              "name": "empty_username",
+              "techniques": [
+                "error_guessing"
+              ],
+              "inputs": {
+                "username": "",
+                "password": "admin123"
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Required"
+                ],
+                "stays_on_page": true
+              }
+            },
+            {
+              "name": "empty_password",
+              "techniques": [
+                "error_guessing"
+              ],
+              "inputs": {
+                "username": "Admin",
+                "password": ""
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Required"
+                ],
+                "stays_on_page": true
+              }
+            },
+            {
+              "name": "whitespace_username",
+              "techniques": [
+                "error_guessing"
+              ],
+              "inputs": {
+                "username": "   ",
+                "password": "admin123"
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid credentials"
+                ],
+                "stays_on_page": true
+              }
+            },
+            {
+              "name": "whitespace_password",
+              "techniques": [
+                "error_guessing"
+              ],
+              "inputs": {
+                "username": "Admin",
+                "password": "   "
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Required"
+                ],
+                "stays_on_page": true
+              }
+            },
+            {
+              "name": "long_username",
+              "techniques": [
+                "bva"
+              ],
+              "inputs": {
+                "username": "A",
+                "password": "admin123"
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid credentials"
+                ],
+                "stays_on_page": true
+              }
+            }
+          ],
+          "base_url": "https://opensource-demo.orangehrmlive.com"
+        }
+      }
+    ]
+  },
+  "response": {
+    "status": "completed",
+    "goal": "Test valid login and verify message stays on login page",
+    "assumptions": [
+      "The login page is accessible at the provided URL.",
+      "The application will display an error message for invalid login attempts."
+    ],
+    "total_steps": 1,
+    "passed": 1,
+    "failed": 3,
+    "results": [
+      {
+        "step": {
+          "tool": "playwright_runner",
+          "args": {
+            "path": "tests/login_test.py",
+            "description": "Test valid login and verify message stays on login page",
+            "priority": "P1",
+            "severity": "high",
+            "tags": [
+              "ui",
+              "positive",
+              "negative",
+              "state"
+            ],
+            "requires_auth": false,
+            "linked_requirements": [
+              "REQ-001"
+            ],
+            "data": [
+              {
+                "name": "valid_login",
+                "techniques": [
+                  "ecp"
+                ],
+                "inputs": {
+                  "username": "Admin",
+                  "password": "admin123"
+                },
+                "expected": {
+                  "outcome": "success",
+                  "status_code": 200,
+                  "url_contains": "/dashboard",
+                  "error_visible": false,
+                  "error_any_of": [],
+                  "stays_on_page": false
+                }
+              },
+              {
+                "name": "invalid_username",
+                "techniques": [
+                  "ecp",
+                  "error_guessing"
+                ],
+                "inputs": {
+                  "username": "InvalidUser",
+                  "password": "admin123"
+                },
+                "expected": {
+                  "outcome": "error",
+                  "status_code": 200,
+                  "url_contains": "/login",
+                  "error_visible": true,
+                  "error_any_of": [
+                    "Invalid credentials"
+                  ],
+                  "stays_on_page": true
+                }
+              },
+              {
+                "name": "invalid_password",
+                "techniques": [
+                  "ecp",
+                  "error_guessing"
+                ],
+                "inputs": {
+                  "username": "Admin",
+                  "password": "wrongpassword"
+                },
+                "expected": {
+                  "outcome": "error",
+                  "status_code": 200,
+                  "url_contains": "/login",
+                  "error_visible": true,
+                  "error_any_of": [
+                    "Invalid credentials"
+                  ],
+                  "stays_on_page": true
+                }
+              },
+              {
+                "name": "empty_username",
+                "techniques": [
+                  "error_guessing"
+                ],
+                "inputs": {
+                  "username": "",
+                  "password": "admin123"
+                },
+                "expected": {
+                  "outcome": "error",
+                  "status_code": 200,
+                  "url_contains": "/login",
+                  "error_visible": true,
+                  "error_any_of": [
+                    "Required"
+                  ],
+                  "stays_on_page": true
+                }
+              },
+              {
+                "name": "empty_password",
+                "techniques": [
+                  "error_guessing"
+                ],
+                "inputs": {
+                  "username": "Admin",
+                  "password": ""
+                },
+                "expected": {
+                  "outcome": "error",
+                  "status_code": 200,
+                  "url_contains": "/login",
+                  "error_visible": true,
+                  "error_any_of": [
+                    "Required"
+                  ],
+                  "stays_on_page": true
+                }
+              },
+              {
+                "name": "whitespace_username",
+                "techniques": [
+                  "error_guessing"
+                ],
+                "inputs": {
+                  "username": "   ",
+                  "password": "admin123"
+                },
+                "expected": {
+                  "outcome": "error",
+                  "status_code": 200,
+                  "url_contains": "/login",
+                  "error_visible": true,
+                  "error_any_of": [
+                    "Invalid credentials"
+                  ],
+                  "stays_on_page": true
+                }
+              },
+              {
+                "name": "whitespace_password",
+                "techniques": [
+                  "error_guessing"
+                ],
+                "inputs": {
+                  "username": "Admin",
+                  "password": "   "
+                },
+                "expected": {
+                  "outcome": "error",
+                  "status_code": 200,
+                  "url_contains": "/login",
+                  "error_visible": true,
+                  "error_any_of": [
+                    "Required"
+                  ],
+                  "stays_on_page": true
+                }
+              },
+              {
+                "name": "long_username",
+                "techniques": [
+                  "bva"
+                ],
+                "inputs": {
+                  "username": "A",
+                  "password": "admin123"
+                },
+                "expected": {
+                  "outcome": "error",
+                  "status_code": 200,
+                  "url_contains": "/login",
+                  "error_visible": true,
+                  "error_any_of": [
+                    "Invalid credentials"
+                  ],
+                  "stays_on_page": true
+                }
+              }
+            ],
+            "base_url": "https://opensource-demo.orangehrmlive.com"
+          }
+        },
+        "result": {
+          "status": "failed",
+          "summary": {
+            "passed": 1,
+            "failed": 3,
+            "errors": 0,
+            "skipped": 0
+          },
+          "stdout": "FFF!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! KeyboardInterrupt !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\nC:\\Users\\WELCOME\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\asyncio\\windows_events.py:825: KeyboardInterrupt\n(to show a full traceback on KeyboardInterrupt use --full-trace)\n",
+          "stderr": "Traceback (most recent call last):\n  File \"<frozen runpy>\", line 198, in _run_module_as_main\n  File \"<frozen runpy>\", line 88, in _run_code\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\pytest\\__main__.py\", line 9, in <module>\n    raise SystemExit(pytest.console_main())\n                     ^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\_pytest\\config\\__init__.py\", line 223, in console_main\n    code = main()\n           ^^^^^^\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\_pytest\\config\\__init__.py\", line 199, in main\n    ret: ExitCode | int = config.hook.pytest_cmdline_main(config=config)\n                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\pluggy\\_hooks.py\", line 512, in __call__\n    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\pluggy\\_manager.py\", line 120, in _hookexec\n    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\pluggy\\_callers.py\", line 167, in _multicall\n    raise exception\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\pluggy\\_callers.py\", line 121, in _multicall\n    res = hook_impl.function(*args)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\_pytest\\main.py\", line 365, in pytest_cmdline_main\n    return wrap_session(config, _main)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\_pytest\\main.py\", line 353, in wrap_session\n    config.hook.pytest_sessionfinish(\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\pluggy\\_hooks.py\", line 512, in __call__\n    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\pluggy\\_manager.py\", line 120, in _hookexec\n    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\pluggy\\_callers.py\", line 167, in _multicall\n    raise exception\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\pluggy\\_callers.py\", line 139, in _multicall\n    teardown.throw(exception)\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\_pytest\\logging.py\", line 873, in pytest_sessionfinish\n    return (yield)\n            ^^^^^\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\pluggy\\_callers.py\", line 139, in _multicall\n    teardown.throw(exception)\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\_pytest\\terminal.py\", line 960, in pytest_sessionfinish\n    result = yield\n             ^^^^^\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\pluggy\\_callers.py\", line 139, in _multicall\n    teardown.throw(exception)\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\_pytest\\warnings.py\", line 118, in pytest_sessionfinish\n    return (yield)\n            ^^^^^\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\pluggy\\_callers.py\", line 121, in _multicall\n    res = hook_impl.function(*args)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\_pytest\\runner.py\", line 112, in pytest_sessionfinish\n    session._setupstate.teardown_exact(None)\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\_pytest\\runner.py\", line 555, in teardown_exact\n    fin()\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\_pytest\\fixtures.py\", line 1053, in finish\n    raise exceptions[0]\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\_pytest\\fixtures.py\", line 1042, in finish\n    fin()\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\_pytest\\fixtures.py\", line 924, in _teardown_yield_fixture\n    next(it)\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\pytest_playwright\\pytest_playwright.py\", line 358, in new_context\n    context.close()\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\pytest_playwright\\pytest_playwright.py\", line 348, in _close_wrapper\n    _artifacts_recorder.on_will_close_browser_context(context)\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\pytest_playwright\\pytest_playwright.py\", line 597, in on_will_close_browser_context\n    context.tracing.stop()\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\playwright\\sync_api\\_generated.py\", line 15298, in stop\n    return mapping.from_maybe_impl(self._sync(self._impl_obj.stop(path=path)))\n                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\playwright\\_impl\\_sync_base.py\", line 113, in _sync\n    self._dispatcher_fiber.switch()\nKeyboardInterrupt\n",
+          "exit_code": 3221225786,
+          "report_file": "data\\reports\\report_20260215_130029_391194.json",
+          "junit_file": "data\\reports\\junit_20260215_130029_391194.xml"
+        }
+      }
+    ],
+    "timestamp": "2026-02-15T13:02:41.651887"
+  },
+  "results": [
+    {
+      "step": {
+        "tool": "playwright_runner",
+        "args": {
+          "path": "tests/login_test.py",
+          "description": "Test valid login and verify message stays on login page",
+          "priority": "P1",
+          "severity": "high",
+          "tags": [
+            "ui",
+            "positive",
+            "negative",
+            "state"
+          ],
+          "requires_auth": false,
+          "linked_requirements": [
+            "REQ-001"
+          ],
+          "data": [
+            {
+              "name": "valid_login",
+              "techniques": [
+                "ecp"
+              ],
+              "inputs": {
+                "username": "Admin",
+                "password": "admin123"
+              },
+              "expected": {
+                "outcome": "success",
+                "status_code": 200,
+                "url_contains": "/dashboard",
+                "error_visible": false,
+                "error_any_of": [],
+                "stays_on_page": false
+              }
+            },
+            {
+              "name": "invalid_username",
+              "techniques": [
+                "ecp",
+                "error_guessing"
+              ],
+              "inputs": {
+                "username": "InvalidUser",
+                "password": "admin123"
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid credentials"
+                ],
+                "stays_on_page": true
+              }
+            },
+            {
+              "name": "invalid_password",
+              "techniques": [
+                "ecp",
+                "error_guessing"
+              ],
+              "inputs": {
+                "username": "Admin",
+                "password": "wrongpassword"
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid credentials"
+                ],
+                "stays_on_page": true
+              }
+            },
+            {
+              "name": "empty_username",
+              "techniques": [
+                "error_guessing"
+              ],
+              "inputs": {
+                "username": "",
+                "password": "admin123"
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Required"
+                ],
+                "stays_on_page": true
+              }
+            },
+            {
+              "name": "empty_password",
+              "techniques": [
+                "error_guessing"
+              ],
+              "inputs": {
+                "username": "Admin",
+                "password": ""
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Required"
+                ],
+                "stays_on_page": true
+              }
+            },
+            {
+              "name": "whitespace_username",
+              "techniques": [
+                "error_guessing"
+              ],
+              "inputs": {
+                "username": "   ",
+                "password": "admin123"
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid credentials"
+                ],
+                "stays_on_page": true
+              }
+            },
+            {
+              "name": "whitespace_password",
+              "techniques": [
+                "error_guessing"
+              ],
+              "inputs": {
+                "username": "Admin",
+                "password": "   "
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Required"
+                ],
+                "stays_on_page": true
+              }
+            },
+            {
+              "name": "long_username",
+              "techniques": [
+                "bva"
+              ],
+              "inputs": {
+                "username": "A",
+                "password": "admin123"
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid credentials"
+                ],
+                "stays_on_page": true
+              }
+            }
+          ],
+          "base_url": "https://opensource-demo.orangehrmlive.com"
+        }
+      },
+      "result": {
+        "status": "failed",
+        "summary": {
+          "passed": 1,
+          "failed": 3,
+          "errors": 0,
+          "skipped": 0
+        },
+        "stdout": "FFF!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! KeyboardInterrupt !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\nC:\\Users\\WELCOME\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\asyncio\\windows_events.py:825: KeyboardInterrupt\n(to show a full traceback on KeyboardInterrupt use --full-trace)\n",
+        "stderr": "Traceback (most recent call last):\n  File \"<frozen runpy>\", line 198, in _run_module_as_main\n  File \"<frozen runpy>\", line 88, in _run_code\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\pytest\\__main__.py\", line 9, in <module>\n    raise SystemExit(pytest.console_main())\n                     ^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\_pytest\\config\\__init__.py\", line 223, in console_main\n    code = main()\n           ^^^^^^\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\_pytest\\config\\__init__.py\", line 199, in main\n    ret: ExitCode | int = config.hook.pytest_cmdline_main(config=config)\n                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\pluggy\\_hooks.py\", line 512, in __call__\n    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\pluggy\\_manager.py\", line 120, in _hookexec\n    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\pluggy\\_callers.py\", line 167, in _multicall\n    raise exception\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\pluggy\\_callers.py\", line 121, in _multicall\n    res = hook_impl.function(*args)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\_pytest\\main.py\", line 365, in pytest_cmdline_main\n    return wrap_session(config, _main)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\_pytest\\main.py\", line 353, in wrap_session\n    config.hook.pytest_sessionfinish(\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\pluggy\\_hooks.py\", line 512, in __call__\n    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\pluggy\\_manager.py\", line 120, in _hookexec\n    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\pluggy\\_callers.py\", line 167, in _multicall\n    raise exception\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\pluggy\\_callers.py\", line 139, in _multicall\n    teardown.throw(exception)\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\_pytest\\logging.py\", line 873, in pytest_sessionfinish\n    return (yield)\n            ^^^^^\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\pluggy\\_callers.py\", line 139, in _multicall\n    teardown.throw(exception)\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\_pytest\\terminal.py\", line 960, in pytest_sessionfinish\n    result = yield\n             ^^^^^\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\pluggy\\_callers.py\", line 139, in _multicall\n    teardown.throw(exception)\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\_pytest\\warnings.py\", line 118, in pytest_sessionfinish\n    return (yield)\n            ^^^^^\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\pluggy\\_callers.py\", line 121, in _multicall\n    res = hook_impl.function(*args)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\_pytest\\runner.py\", line 112, in pytest_sessionfinish\n    session._setupstate.teardown_exact(None)\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\_pytest\\runner.py\", line 555, in teardown_exact\n    fin()\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\_pytest\\fixtures.py\", line 1053, in finish\n    raise exceptions[0]\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\_pytest\\fixtures.py\", line 1042, in finish\n    fin()\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\_pytest\\fixtures.py\", line 924, in _teardown_yield_fixture\n    next(it)\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\pytest_playwright\\pytest_playwright.py\", line 358, in new_context\n    context.close()\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\pytest_playwright\\pytest_playwright.py\", line 348, in _close_wrapper\n    _artifacts_recorder.on_will_close_browser_context(context)\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\pytest_playwright\\pytest_playwright.py\", line 597, in on_will_close_browser_context\n    context.tracing.stop()\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\playwright\\sync_api\\_generated.py\", line 15298, in stop\n    return mapping.from_maybe_impl(self._sync(self._impl_obj.stop(path=path)))\n                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Automation\\qa_agent\\.venv\\Lib\\site-packages\\playwright\\_impl\\_sync_base.py\", line 113, in _sync\n    self._dispatcher_fiber.switch()\nKeyboardInterrupt\n",
+        "exit_code": 3221225786,
+        "report_file": "data\\reports\\report_20260215_130029_391194.json",
+        "junit_file": "data\\reports\\junit_20260215_130029_391194.xml"
+      }
+    }
+  ]
+}

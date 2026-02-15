@@ -4,31 +4,33 @@ import json
 from openai import OpenAI
 from pathlib import Path
 
-class Planner:
+# agent/planner.py
+import json
+from pathlib import Path
+from openai import OpenAI
 
-    def __init__(
-            self,
-            model="gpt-4o-mini",
-            prompt_path="config/prompts/generate_tests.md"
-    ):
-        path = Path(prompt_path)
-        if not path.exists():
-            raise FileNotFoundError(f"Missing prompt file: {path}")
-        self.prompt = path.read_text(encoding="utf-8")
+
+class Planner:
+    def __init__(self, model: str = "gpt-4o-mini", prompt_path: str = "config/prompts/generate_tests.md"):
         self.model = model
-        self.client = OpenAI()
+        self.prompt = Path(prompt_path).read_text(encoding="utf-8")
+        self.client = OpenAI()  # uses OPENAI_API_KEY env var
 
     def generate_plan(self, spec: str) -> dict:
+        messages = [
+            {"role": "system", "content": self.prompt},
+            {"role": "user", "content": spec},
+        ]
+
         try:
-            response = self.client.chat.completions.create(
+            resp = self.client.chat.completions.create(
                 model=self.model,
-                messages=[
-                    {"role": "system", "content": self.prompt},
-                    {"role": "user", "content": spec}
-                ],
-                response_format={"type": "json_object"}
+                messages=messages,
+                temperature=0.2,
+                response_format={"type": "json_object"},
             )
-            return json.loads(response.choices[0].message.content)
+            content = (resp.choices[0].message.content or "").strip()
+            return json.loads(content)
         except Exception as e:
             return {"error": str(e)}
 
@@ -47,8 +49,24 @@ if __name__ == "__main__":
     parser.add_argument("--spec", type=str, required=True, help="Spec describing the QA task")
     args = parser.parse_args()
 
+    import re, os
+    from agent.tools import ui_recon_runner
+
+    spec = args.spec  # ✅ define it first
+
+    url_match = re.search(r"https?://[^\s)]+", spec)
+    if url_match:
+        base_url = url_match.group(0).rstrip(".,;").rstrip("/")
+        os.environ["BASE_URL"] = base_url
+        os.environ["APP_BASE_URL"] = base_url
+
+        recon = ui_recon_runner.run_recon(base_url=base_url, max_pages=25, max_depth=2)
+        if recon.get("status") == "ok":
+            os.environ["SITE_MODEL_PATH"] = recon["model_path"]
+            spec = spec + "\n\n" + recon["summary"] + "\n"
+
     planner = Planner()
-    plan = planner.generate_plan(args.spec)
+    plan = planner.generate_plan(spec)  # ✅ NOT args.spec
 
     if "steps" not in plan:
         print("Planner Error:", plan)

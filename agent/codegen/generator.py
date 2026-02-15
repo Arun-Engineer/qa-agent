@@ -1,66 +1,70 @@
+from __future__ import annotations
+
+import json
 from pathlib import Path
+from typing import Optional
+
 from openai import OpenAI
 
 
 class TestGenerator:
-
     def __init__(
         self,
-        model="gpt-4",
-        prompt_path="config/prompts/generate_test_file.md"
+        model: str = "gpt-4o-mini",
+        prompt_template_path: str = "config/prompts/generate_test_file.md",
     ):
-        prompt_file = Path(prompt_path)
-
-        if not prompt_file.exists():
-            raise FileNotFoundError(f"Missing prompt file: {prompt_path}")
-
-        # Read prompt safely cross‑platform
-        self.prompt = prompt_file.read_text(encoding="utf-8")
-
-        # Correct OpenAI client usage
-        self.client = OpenAI()
         self.model = model
+        self.client = OpenAI()  # uses OPENAI_API_KEY from env
+        self.prompt_template_path = prompt_template_path
+        self.prompt_template = Path(prompt_template_path).read_text(encoding="utf-8")
 
-
-    # -----------------------------------------------------
-    # Generate Python test code using LLM
-    # -----------------------------------------------------
-    def generate_test_code(self, step: dict) -> str:
-
-        description = step.get("args", {}).get("description", str(step))
-
-        messages = [
-            {"role": "system", "content": self.prompt},
-            {"role": "user", "content": description}
-        ]
-
+    def _read_site_model(self, site_model_path: Optional[str], max_chars: int = 12000) -> str:
+        if not site_model_path:
+            return ""
         try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                temperature=0.2,
-            )
+            p = Path(site_model_path)
+            if not p.exists():
+                return ""
+            return p.read_text(encoding="utf-8")[:max_chars]
+        except Exception:
+            return ""
 
-            code = response.choices[0].message.content.strip()
+    def generate_test_code(
+        self,
+        step: dict,
+        spec: str = "",
+        site_model_path: Optional[str] = None,
+        fix_error: Optional[str] = None,
+    ) -> str:
+        """
+        step: planner step dict
+        spec: full user spec (optionally enriched)
+        site_model_path: path returned by ui_recon_runner (optional)
+        fix_error: prior failure text to help regenerate (optional)
+        """
+        prompt = self.prompt_template
 
-            # Safety guard: ensure file always valid python
-            if not code.startswith(("import", "from", "def", "#")):
-                code = f"# Auto-generated test\n{code}"
+        # REQUIRED placeholders
+        prompt = prompt.replace("{{STEP}}", json.dumps(step, ensure_ascii=False, indent=2))
+        prompt = prompt.replace("{{SPEC}}", (spec or "").strip())
+        prompt = prompt.replace("{{SITE_MODEL}}", self._read_site_model(site_model_path))
+        prompt = prompt.replace("{{FIX_ERROR}}", (fix_error or "").strip())
 
-            return code
+        resp = self.client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": "Return ONLY valid Python code. No markdown. No explanations."},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.2,
+        )
 
-        except Exception as e:
-            return f"# ERROR generating test\n# {e}"
+        code = (resp.choices[0].message.content or "").strip()
+        if not code:
+            raise RuntimeError("LLM returned empty test code")
+        return code
 
-
-    # -----------------------------------------------------
-    # Save generated file
-    # -----------------------------------------------------
-    def write_test_file(self, content: str, file_path: str):
-
-        file_path = Path(file_path)
-        file_path.parent.mkdir(parents=True, exist_ok=True)
-
-        file_path.write_text(content, encoding="utf-8")
-
-        return str(file_path)
+    def write_test_file(self, code: str, path: Path) -> Path:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(code, encoding="utf-8")
+        return path
