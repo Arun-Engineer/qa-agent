@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+  <h1>Find your workspace</h1>
+  <p class="muted">Enter your work email and we’ll route you to your company workspace.</p>
+
+  <form method="post" action="/discover">
+    <div class="field">
+      <label>Work email</label>
+      <input name="email" type="email" placeholder="you@company.com" required />
+    </div>
+    <button type="submit">Continue</button>
+  </form>
+
+  {% if error %}
+    <div class="err">{{ error }}</div>
+  {% endif %}
+{% endblock %}

@@ -8,13 +8,31 @@ from pathlib import Path
 import json
 from pathlib import Path
 from openai import OpenAI
+from agent.utils.openai_wrapper import chat_completion as _chat_completion
 
 
 class Planner:
     def __init__(self, model: str = "gpt-4o-mini", prompt_path: str = "config/prompts/generate_tests.md"):
         self.model = model
-        self.prompt = Path(prompt_path).read_text(encoding="utf-8")
-        self.client = OpenAI()  # uses OPENAI_API_KEY env var
+
+        # Make prompt loading independent of current working dir
+        root = Path(__file__).resolve().parents[1]  # project root
+        self.prompt = (root / prompt_path).read_text(encoding="utf-8")
+
+    def chat_completion(self, *, messages, **kwargs):
+        """
+        Single place where Planner talks to OpenAI.
+        IMPORTANT: messages is keyword-only to prevent passing it twice.
+        """
+        # If some caller accidentally included messages in kwargs, remove it
+        kwargs.pop("messages", None)
+
+        return _chat_completion(
+            messages=messages,
+            model=self.model,                 # default model for planner
+            service_name="qa-agent-planner",  # tracing name
+            **kwargs,
+        )
 
     def generate_plan(self, spec: str) -> dict:
         messages = [
@@ -23,8 +41,7 @@ class Planner:
         ]
 
         try:
-            resp = self.client.chat.completions.create(
-                model=self.model,
+            resp = self.chat_completion(
                 messages=messages,
                 temperature=0.2,
                 response_format={"type": "json_object"},

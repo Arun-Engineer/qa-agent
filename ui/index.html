@@ -4,16 +4,25 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>AI QA Control Center</title>
+  <link rel="icon" type="image/png" href="/static/branding/aiqa_logo.png">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 
 <body>
   <div class="sidebar">
-    <h1>AI QA</h1>
+    <div class="brand">
+      <img class="brand-logo" src="/static/branding/aiqa_sidebar_logo.png" alt="AI QA logo">
+      <div class="brand-text">
+        <div class="brand-title">AI QA</div>
+        <div class="brand-sub">Control Center</div>
+      </div>
+    </div>
+
     <button onclick="showDashboard()">Dashboard</button>
     <button onclick="showExecutor()">Run Spec</button>
     <button onclick="showAsk()">Ask QA</button>
     <button onclick="loadRuns()">Run History</button>
+    <button onclick="showAdmin()">Admin</button>
   </div>
 
   <div class="main">
@@ -35,6 +44,25 @@
 
     <div id="executor" class="hidden">
       <h2>Execute User Story</h2>
+
+      <!-- Upload -->
+      <div class="upload-row">
+        <label class="file-pill">
+          <input type="file" id="specFile" accept=".pdf,.docx,.txt,.md" />
+          <span>Upload spec (PDF / DOCX / TXT / MD)</span>
+        </label>
+
+        <div id="specFileName" class="muted" style="margin-top:8px;">No file selected</div>
+
+        <button type="button" class="btn btn-ghost btn-sm" id="clearSpecFile" style="margin-top:10px;">
+          Clear file
+        </button>
+
+        <div class="muted" style="margin-top:6px;">
+          Tip: upload OR paste below. If both are provided, upload wins.
+        </div>
+      </div>
+
       <textarea id="specInput" placeholder="Paste user story..."></textarea>
       <button onclick="runSpec()">Execute</button>
       <div id="executionResult"></div>
@@ -50,6 +78,120 @@
     <div id="runs" class="hidden">
       <h2>Execution History</h2>
       <div id="runsList"></div>
+    </div>
+
+    <!-- Admin -->
+    <div id="admin" class="hidden">
+      <div class="admin-header">
+        <div>
+          <h2 style="margin:0;">Admin Console</h2>
+          <div class="muted" style="margin-top:6px;">
+            Manage tenant members/invites, and (if super admin) platform tenants/roles.
+          </div>
+        </div>
+      </div>
+
+      <div class="card admin-card">
+        <div class="admin-card-title">Current Access</div>
+        <div id="adminMe" class="admin-kv"></div>
+      </div>
+
+      <div class="admin-grid">
+        <!-- Tenant Admin -->
+        <div class="card admin-card" id="tenantAdminCard">
+          <div class="admin-card-title">Tenant Admin</div>
+
+          <div class="admin-form">
+            <div class="admin-field">
+              <label class="admin-label" for="inviteEmail">Invite email</label>
+              <input id="inviteEmail" class="admin-input" placeholder="name@company.com" />
+            </div>
+
+            <div class="admin-field">
+              <label class="admin-label" for="inviteRole">Role</label>
+              <select id="inviteRole" class="admin-select">
+                <option value="member">member</option>
+                <option value="viewer">viewer</option>
+                <option value="admin">admin</option>
+                <option value="owner">owner</option>
+              </select>
+            </div>
+
+            <div class="admin-field admin-actions">
+              <label class="admin-label" style="opacity:0;">Action</label>
+              <button class="btn btn-primary" onclick="createInvite()">Invite / Add</button>
+            </div>
+          </div>
+
+          <div id="inviteResult" class="muted" style="margin-top:10px;"></div>
+
+          <div class="admin-section">
+            <div class="admin-section-title">Members</div>
+            <div id="membersList" class="admin-list"></div>
+          </div>
+
+          <div class="admin-section">
+            <div class="admin-section-title">Invites</div>
+            <div id="invitesList" class="admin-list"></div>
+          </div>
+
+          <div class="admin-section">
+            <div class="admin-section-title">Audit Logs</div>
+            <div id="auditList" class="admin-list"></div>
+          </div>
+        </div>
+
+        <!-- Platform Admin -->
+        <div class="card admin-card" id="platformAdminCard">
+          <div class="admin-card-title">Platform Admin (Super Admin)</div>
+
+          <div class="admin-form admin-form-2">
+            <div class="admin-field">
+              <label class="admin-label" for="tenantSlug">Tenant slug</label>
+              <input id="tenantSlug" class="admin-input" placeholder="acme" />
+            </div>
+
+            <div class="admin-field">
+              <label class="admin-label" for="tenantName">Tenant name</label>
+              <input id="tenantName" class="admin-input" placeholder="Acme Corp" />
+            </div>
+
+            <div class="admin-field admin-actions">
+              <label class="admin-label" style="opacity:0;">Action</label>
+              <button class="btn btn-primary" onclick="createTenant()">Create Tenant</button>
+            </div>
+          </div>
+
+          <div class="admin-form" style="margin-top:12px;">
+            <div class="admin-field">
+              <label class="admin-label" for="platformEmail">User email</label>
+              <input id="platformEmail" class="admin-input" placeholder="user@company.com" />
+            </div>
+
+            <div class="admin-field">
+              <label class="admin-label" for="platformRole">Platform role</label>
+              <select id="platformRole" class="admin-select">
+                <option value="none">none</option>
+                <option value="support">support</option>
+                <option value="billing">billing</option>
+                <option value="super_admin">super_admin</option>
+              </select>
+            </div>
+
+            <div class="admin-field admin-actions">
+              <label class="admin-label" style="opacity:0;">Action</label>
+              <button class="btn btn-primary" onclick="grantPlatformRole()">Grant Role</button>
+            </div>
+          </div>
+
+          <div id="platformResult" class="muted" style="margin-top:10px;"></div>
+
+          <div class="admin-section" style="margin-top:14px;">
+            <div class="admin-section-title">Tenants</div>
+            <div id="tenantsList" class="admin-list"></div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 

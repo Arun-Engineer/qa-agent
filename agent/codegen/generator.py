@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Optional
 
 from openai import OpenAI
-
+from agent.utils.openai_wrapper import chat_completion  # NEW
 
 class TestGenerator:
     def __init__(
@@ -14,9 +14,11 @@ class TestGenerator:
         prompt_template_path: str = "config/prompts/generate_test_file.md",
     ):
         self.model = model
-        self.client = OpenAI()  # uses OPENAI_API_KEY from env
+
+        # Make path independent of current working dir
+        root = Path(__file__).resolve().parents[2]  # agent/codegen/generator.py -> project root
         self.prompt_template_path = prompt_template_path
-        self.prompt_template = Path(prompt_template_path).read_text(encoding="utf-8")
+        self.prompt_template = (root / prompt_template_path).read_text(encoding="utf-8")
 
     def _read_site_model(self, site_model_path: Optional[str], max_chars: int = 12000) -> str:
         if not site_model_path:
@@ -50,13 +52,14 @@ class TestGenerator:
         prompt = prompt.replace("{{SITE_MODEL}}", self._read_site_model(site_model_path))
         prompt = prompt.replace("{{FIX_ERROR}}", (fix_error or "").strip())
 
-        resp = self.client.chat.completions.create(
+        resp = self.chat_completions(
             model=self.model,
             messages=[
                 {"role": "system", "content": "Return ONLY valid Python code. No markdown. No explanations."},
                 {"role": "user", "content": prompt},
             ],
             temperature=0.2,
+            service_name="qa-agent-codegen",
         )
 
         code = (resp.choices[0].message.content or "").strip()

@@ -1,0 +1,661 @@
+{
+  "timestamp": "20260219_194915_926963",
+  "spec": "user should not be able to login with invalid credentials for\\nhttps://opensource-demo.orangehrmlive.com/web/index.php/auth/login",
+  "plan": {
+    "goal": "Verify that users cannot log in with invalid credentials",
+    "assumptions": [
+      "The login page is accessible at the provided URL.",
+      "The application returns an error message for invalid login attempts."
+    ],
+    "steps": [
+      {
+        "tool": "playwright_runner",
+        "args": {
+          "path": "tests/login_invalid_credentials.py",
+          "description": "Test login functionality with invalid credentials",
+          "priority": "P1",
+          "severity": "high",
+          "tags": [
+            "ui",
+            "negative",
+            "state"
+          ],
+          "requires_auth": false,
+          "linked_requirements": [
+            "REQ-001"
+          ],
+          "data": [
+            {
+              "name": "invalid_username_invalid_password",
+              "techniques": [
+                "ecp",
+                "error_guessing"
+              ],
+              "inputs": {
+                "username": "invalidUser",
+                "password": "invalidPass"
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/auth/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid",
+                  "Required",
+                  "Error"
+                ],
+                "stays_on_page": true
+              }
+            },
+            {
+              "name": "empty_username_empty_password",
+              "techniques": [
+                "ecp",
+                "error_guessing"
+              ],
+              "inputs": {
+                "username": "",
+                "password": ""
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/auth/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid",
+                  "Required",
+                  "Error"
+                ],
+                "stays_on_page": true
+              }
+            },
+            {
+              "name": "whitespace_username_whitespace_password",
+              "techniques": [
+                "ecp",
+                "error_guessing"
+              ],
+              "inputs": {
+                "username": "   ",
+                "password": "   "
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/auth/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid",
+                  "Required",
+                  "Error"
+                ],
+                "stays_on_page": true
+              }
+            },
+            {
+              "name": "long_username_long_password",
+              "techniques": [
+                "bva"
+              ],
+              "inputs": {
+                "username": "a",
+                "password": "b"
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/auth/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid",
+                  "Required",
+                  "Error"
+                ],
+                "stays_on_page": true
+              }
+            },
+            {
+              "name": "special_chars_username_special_chars_password",
+              "techniques": [
+                "error_guessing"
+              ],
+              "inputs": {
+                "username": "!@#$%^&*()",
+                "password": "!@#$%^&*()"
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/auth/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid",
+                  "Required",
+                  "Error"
+                ],
+                "stays_on_page": true
+              }
+            },
+            {
+              "name": "unicode_username_unicode_password",
+              "techniques": [
+                "error_guessing"
+              ],
+              "inputs": {
+                "username": "\u7528\u6237",
+                "password": "\u5bc6\u7801"
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/auth/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid",
+                  "Required",
+                  "Error"
+                ],
+                "stays_on_page": true
+              }
+            },
+            {
+              "name": "injection_username_injection_password",
+              "techniques": [
+                "error_guessing"
+              ],
+              "inputs": {
+                "username": "' OR '1'='1",
+                "password": "' OR '1'='1"
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/auth/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid",
+                  "Required",
+                  "Error"
+                ],
+                "stays_on_page": true
+              }
+            },
+            {
+              "name": "repeated_attempts",
+              "techniques": [
+                "state"
+              ],
+              "inputs": {
+                "username": "invalidUser",
+                "password": "invalidPass"
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/auth/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid",
+                  "Required",
+                  "Error"
+                ],
+                "stays_on_page": true
+              }
+            }
+          ],
+          "base_url": "https://opensource-demo.orangehrmlive.com"
+        }
+      }
+    ]
+  },
+  "response": {
+    "status": "completed",
+    "goal": "Verify that users cannot log in with invalid credentials",
+    "assumptions": [
+      "The login page is accessible at the provided URL.",
+      "The application returns an error message for invalid login attempts."
+    ],
+    "total_steps": 1,
+    "passed": 6,
+    "failed": 0,
+    "results": [
+      {
+        "step": {
+          "tool": "playwright_runner",
+          "args": {
+            "path": "tests/login_invalid_credentials.py",
+            "description": "Test login functionality with invalid credentials",
+            "priority": "P1",
+            "severity": "high",
+            "tags": [
+              "ui",
+              "negative",
+              "state"
+            ],
+            "requires_auth": false,
+            "linked_requirements": [
+              "REQ-001"
+            ],
+            "data": [
+              {
+                "name": "invalid_username_invalid_password",
+                "techniques": [
+                  "ecp",
+                  "error_guessing"
+                ],
+                "inputs": {
+                  "username": "invalidUser",
+                  "password": "invalidPass"
+                },
+                "expected": {
+                  "outcome": "error",
+                  "status_code": 200,
+                  "url_contains": "/auth/login",
+                  "error_visible": true,
+                  "error_any_of": [
+                    "Invalid",
+                    "Required",
+                    "Error"
+                  ],
+                  "stays_on_page": true
+                }
+              },
+              {
+                "name": "empty_username_empty_password",
+                "techniques": [
+                  "ecp",
+                  "error_guessing"
+                ],
+                "inputs": {
+                  "username": "",
+                  "password": ""
+                },
+                "expected": {
+                  "outcome": "error",
+                  "status_code": 200,
+                  "url_contains": "/auth/login",
+                  "error_visible": true,
+                  "error_any_of": [
+                    "Invalid",
+                    "Required",
+                    "Error"
+                  ],
+                  "stays_on_page": true
+                }
+              },
+              {
+                "name": "whitespace_username_whitespace_password",
+                "techniques": [
+                  "ecp",
+                  "error_guessing"
+                ],
+                "inputs": {
+                  "username": "   ",
+                  "password": "   "
+                },
+                "expected": {
+                  "outcome": "error",
+                  "status_code": 200,
+                  "url_contains": "/auth/login",
+                  "error_visible": true,
+                  "error_any_of": [
+                    "Invalid",
+                    "Required",
+                    "Error"
+                  ],
+                  "stays_on_page": true
+                }
+              },
+              {
+                "name": "long_username_long_password",
+                "techniques": [
+                  "bva"
+                ],
+                "inputs": {
+                  "username": "a",
+                  "password": "b"
+                },
+                "expected": {
+                  "outcome": "error",
+                  "status_code": 200,
+                  "url_contains": "/auth/login",
+                  "error_visible": true,
+                  "error_any_of": [
+                    "Invalid",
+                    "Required",
+                    "Error"
+                  ],
+                  "stays_on_page": true
+                }
+              },
+              {
+                "name": "special_chars_username_special_chars_password",
+                "techniques": [
+                  "error_guessing"
+                ],
+                "inputs": {
+                  "username": "!@#$%^&*()",
+                  "password": "!@#$%^&*()"
+                },
+                "expected": {
+                  "outcome": "error",
+                  "status_code": 200,
+                  "url_contains": "/auth/login",
+                  "error_visible": true,
+                  "error_any_of": [
+                    "Invalid",
+                    "Required",
+                    "Error"
+                  ],
+                  "stays_on_page": true
+                }
+              },
+              {
+                "name": "unicode_username_unicode_password",
+                "techniques": [
+                  "error_guessing"
+                ],
+                "inputs": {
+                  "username": "\u7528\u6237",
+                  "password": "\u5bc6\u7801"
+                },
+                "expected": {
+                  "outcome": "error",
+                  "status_code": 200,
+                  "url_contains": "/auth/login",
+                  "error_visible": true,
+                  "error_any_of": [
+                    "Invalid",
+                    "Required",
+                    "Error"
+                  ],
+                  "stays_on_page": true
+                }
+              },
+              {
+                "name": "injection_username_injection_password",
+                "techniques": [
+                  "error_guessing"
+                ],
+                "inputs": {
+                  "username": "' OR '1'='1",
+                  "password": "' OR '1'='1"
+                },
+                "expected": {
+                  "outcome": "error",
+                  "status_code": 200,
+                  "url_contains": "/auth/login",
+                  "error_visible": true,
+                  "error_any_of": [
+                    "Invalid",
+                    "Required",
+                    "Error"
+                  ],
+                  "stays_on_page": true
+                }
+              },
+              {
+                "name": "repeated_attempts",
+                "techniques": [
+                  "state"
+                ],
+                "inputs": {
+                  "username": "invalidUser",
+                  "password": "invalidPass"
+                },
+                "expected": {
+                  "outcome": "error",
+                  "status_code": 200,
+                  "url_contains": "/auth/login",
+                  "error_visible": true,
+                  "error_any_of": [
+                    "Invalid",
+                    "Required",
+                    "Error"
+                  ],
+                  "stays_on_page": true
+                }
+              }
+            ],
+            "base_url": "https://opensource-demo.orangehrmlive.com"
+          }
+        },
+        "result": {
+          "status": "passed",
+          "summary": {
+            "passed": 6,
+            "failed": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "stdout": "......                                                                   [100%]\n",
+          "stderr": "",
+          "exit_code": 0,
+          "report_file": "data\\reports\\report_20260219_194612_488473.json",
+          "junit_file": "data\\reports\\junit_20260219_194612_488473.xml"
+        }
+      }
+    ],
+    "timestamp": "2026-02-19T19:49:15.918119"
+  },
+  "results": [
+    {
+      "step": {
+        "tool": "playwright_runner",
+        "args": {
+          "path": "tests/login_invalid_credentials.py",
+          "description": "Test login functionality with invalid credentials",
+          "priority": "P1",
+          "severity": "high",
+          "tags": [
+            "ui",
+            "negative",
+            "state"
+          ],
+          "requires_auth": false,
+          "linked_requirements": [
+            "REQ-001"
+          ],
+          "data": [
+            {
+              "name": "invalid_username_invalid_password",
+              "techniques": [
+                "ecp",
+                "error_guessing"
+              ],
+              "inputs": {
+                "username": "invalidUser",
+                "password": "invalidPass"
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/auth/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid",
+                  "Required",
+                  "Error"
+                ],
+                "stays_on_page": true
+              }
+            },
+            {
+              "name": "empty_username_empty_password",
+              "techniques": [
+                "ecp",
+                "error_guessing"
+              ],
+              "inputs": {
+                "username": "",
+                "password": ""
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/auth/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid",
+                  "Required",
+                  "Error"
+                ],
+                "stays_on_page": true
+              }
+            },
+            {
+              "name": "whitespace_username_whitespace_password",
+              "techniques": [
+                "ecp",
+                "error_guessing"
+              ],
+              "inputs": {
+                "username": "   ",
+                "password": "   "
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/auth/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid",
+                  "Required",
+                  "Error"
+                ],
+                "stays_on_page": true
+              }
+            },
+            {
+              "name": "long_username_long_password",
+              "techniques": [
+                "bva"
+              ],
+              "inputs": {
+                "username": "a",
+                "password": "b"
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/auth/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid",
+                  "Required",
+                  "Error"
+                ],
+                "stays_on_page": true
+              }
+            },
+            {
+              "name": "special_chars_username_special_chars_password",
+              "techniques": [
+                "error_guessing"
+              ],
+              "inputs": {
+                "username": "!@#$%^&*()",
+                "password": "!@#$%^&*()"
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/auth/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid",
+                  "Required",
+                  "Error"
+                ],
+                "stays_on_page": true
+              }
+            },
+            {
+              "name": "unicode_username_unicode_password",
+              "techniques": [
+                "error_guessing"
+              ],
+              "inputs": {
+                "username": "\u7528\u6237",
+                "password": "\u5bc6\u7801"
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/auth/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid",
+                  "Required",
+                  "Error"
+                ],
+                "stays_on_page": true
+              }
+            },
+            {
+              "name": "injection_username_injection_password",
+              "techniques": [
+                "error_guessing"
+              ],
+              "inputs": {
+                "username": "' OR '1'='1",
+                "password": "' OR '1'='1"
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/auth/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid",
+                  "Required",
+                  "Error"
+                ],
+                "stays_on_page": true
+              }
+            },
+            {
+              "name": "repeated_attempts",
+              "techniques": [
+                "state"
+              ],
+              "inputs": {
+                "username": "invalidUser",
+                "password": "invalidPass"
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/auth/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid",
+                  "Required",
+                  "Error"
+                ],
+                "stays_on_page": true
+              }
+            }
+          ],
+          "base_url": "https://opensource-demo.orangehrmlive.com"
+        }
+      },
+      "result": {
+        "status": "passed",
+        "summary": {
+          "passed": 6,
+          "failed": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "stdout": "......                                                                   [100%]\n",
+        "stderr": "",
+        "exit_code": 0,
+        "report_file": "data\\reports\\report_20260219_194612_488473.json",
+        "junit_file": "data\\reports\\junit_20260219_194612_488473.xml"
+      }
+    }
+  ]
+}

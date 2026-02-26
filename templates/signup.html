@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+  <h1>Create account</h1>
+
+  <form method="post" action="/signup">
+    <label>Email</label>
+    <input name="email" type="email" placeholder="you@example.com" required />
+
+    <label>Password</label>
+    <div class="field">
+      <input id="signup_password" name="password" type="password" placeholder="At least 8 characters" required />
+      <button type="button"
+              class="toggle-pass"
+              data-toggle="password"
+              data-target="signup_password"
+              aria-label="Show/hide password"></button>
+    </div>
+
+    <button type="submit">Sign up</button>
+  </form>
+
+  {% if error_html %}
+    <div class="err">{{ error_html | safe }}</div>
+  {% endif %}
+
+  <div class="muted">
+    Already have an account? <a href="/login">Login</a>
+  </div>
+{% endblock %}

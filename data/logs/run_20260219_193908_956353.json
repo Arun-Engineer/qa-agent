@@ -1,0 +1,493 @@
+{
+  "timestamp": "20260219_193908_956353",
+  "spec": "user should not be able to login with invalid credentials for\\nhttps://opensource-demo.orangehrmlive.com/web/index.php/auth/login",
+  "plan": {
+    "goal": "Verify that a user cannot log in with invalid credentials",
+    "assumptions": [
+      "The login page is accessible at the provided URL.",
+      "The application returns appropriate error messages for invalid login attempts."
+    ],
+    "steps": [
+      {
+        "tool": "playwright_runner",
+        "args": {
+          "path": "tests/login_invalid_credentials.py",
+          "description": "Test login functionality with invalid credentials",
+          "priority": "P1",
+          "severity": "high",
+          "tags": [
+            "ui",
+            "negative",
+            "state"
+          ],
+          "requires_auth": false,
+          "linked_requirements": [
+            "REQ-001"
+          ],
+          "data": [
+            {
+              "name": "invalid_username_invalid_password",
+              "techniques": [
+                "ecp",
+                "error_guessing"
+              ],
+              "inputs": {
+                "username": "invalidUser",
+                "password": "invalidPass"
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/auth/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid credentials"
+                ],
+                "stays_on_page": true
+              }
+            },
+            {
+              "name": "empty_username_empty_password",
+              "techniques": [
+                "ecp",
+                "error_guessing"
+              ],
+              "inputs": {
+                "username": "",
+                "password": ""
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/auth/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid credentials"
+                ],
+                "stays_on_page": true
+              }
+            },
+            {
+              "name": "whitespace_username_whitespace_password",
+              "techniques": [
+                "ecp",
+                "error_guessing"
+              ],
+              "inputs": {
+                "username": "   ",
+                "password": "   "
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/auth/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid credentials"
+                ],
+                "stays_on_page": true
+              }
+            },
+            {
+              "name": "special_chars_username_special_chars_password",
+              "techniques": [
+                "error_guessing"
+              ],
+              "inputs": {
+                "username": "!@#$%^&*()",
+                "password": "!@#$%^&*()"
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/auth/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid credentials"
+                ],
+                "stays_on_page": true
+              }
+            },
+            {
+              "name": "unicode_username_unicode_password",
+              "techniques": [
+                "error_guessing"
+              ],
+              "inputs": {
+                "username": "\u7528\u6237",
+                "password": "\u5bc6\u7801"
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/auth/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid credentials"
+                ],
+                "stays_on_page": true
+              }
+            },
+            {
+              "name": "repeated_attempts",
+              "techniques": [
+                "state"
+              ],
+              "inputs": {
+                "username": "invalidUser",
+                "password": "invalidPass"
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/auth/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid credentials"
+                ],
+                "stays_on_page": true
+              }
+            }
+          ],
+          "base_url": "https://opensource-demo.orangehrmlive.com"
+        }
+      }
+    ]
+  },
+  "response": {
+    "status": "completed",
+    "goal": "Verify that a user cannot log in with invalid credentials",
+    "assumptions": [
+      "The login page is accessible at the provided URL.",
+      "The application returns appropriate error messages for invalid login attempts."
+    ],
+    "total_steps": 1,
+    "passed": 0,
+    "failed": 1,
+    "results": [
+      {
+        "step": {
+          "tool": "playwright_runner",
+          "args": {
+            "path": "tests/login_invalid_credentials.py",
+            "description": "Test login functionality with invalid credentials",
+            "priority": "P1",
+            "severity": "high",
+            "tags": [
+              "ui",
+              "negative",
+              "state"
+            ],
+            "requires_auth": false,
+            "linked_requirements": [
+              "REQ-001"
+            ],
+            "data": [
+              {
+                "name": "invalid_username_invalid_password",
+                "techniques": [
+                  "ecp",
+                  "error_guessing"
+                ],
+                "inputs": {
+                  "username": "invalidUser",
+                  "password": "invalidPass"
+                },
+                "expected": {
+                  "outcome": "error",
+                  "status_code": 200,
+                  "url_contains": "/auth/login",
+                  "error_visible": true,
+                  "error_any_of": [
+                    "Invalid credentials"
+                  ],
+                  "stays_on_page": true
+                }
+              },
+              {
+                "name": "empty_username_empty_password",
+                "techniques": [
+                  "ecp",
+                  "error_guessing"
+                ],
+                "inputs": {
+                  "username": "",
+                  "password": ""
+                },
+                "expected": {
+                  "outcome": "error",
+                  "status_code": 200,
+                  "url_contains": "/auth/login",
+                  "error_visible": true,
+                  "error_any_of": [
+                    "Invalid credentials"
+                  ],
+                  "stays_on_page": true
+                }
+              },
+              {
+                "name": "whitespace_username_whitespace_password",
+                "techniques": [
+                  "ecp",
+                  "error_guessing"
+                ],
+                "inputs": {
+                  "username": "   ",
+                  "password": "   "
+                },
+                "expected": {
+                  "outcome": "error",
+                  "status_code": 200,
+                  "url_contains": "/auth/login",
+                  "error_visible": true,
+                  "error_any_of": [
+                    "Invalid credentials"
+                  ],
+                  "stays_on_page": true
+                }
+              },
+              {
+                "name": "special_chars_username_special_chars_password",
+                "techniques": [
+                  "error_guessing"
+                ],
+                "inputs": {
+                  "username": "!@#$%^&*()",
+                  "password": "!@#$%^&*()"
+                },
+                "expected": {
+                  "outcome": "error",
+                  "status_code": 200,
+                  "url_contains": "/auth/login",
+                  "error_visible": true,
+                  "error_any_of": [
+                    "Invalid credentials"
+                  ],
+                  "stays_on_page": true
+                }
+              },
+              {
+                "name": "unicode_username_unicode_password",
+                "techniques": [
+                  "error_guessing"
+                ],
+                "inputs": {
+                  "username": "\u7528\u6237",
+                  "password": "\u5bc6\u7801"
+                },
+                "expected": {
+                  "outcome": "error",
+                  "status_code": 200,
+                  "url_contains": "/auth/login",
+                  "error_visible": true,
+                  "error_any_of": [
+                    "Invalid credentials"
+                  ],
+                  "stays_on_page": true
+                }
+              },
+              {
+                "name": "repeated_attempts",
+                "techniques": [
+                  "state"
+                ],
+                "inputs": {
+                  "username": "invalidUser",
+                  "password": "invalidPass"
+                },
+                "expected": {
+                  "outcome": "error",
+                  "status_code": 200,
+                  "url_contains": "/auth/login",
+                  "error_visible": true,
+                  "error_any_of": [
+                    "Invalid credentials"
+                  ],
+                  "stays_on_page": true
+                }
+              }
+            ],
+            "base_url": "https://opensource-demo.orangehrmlive.com"
+          }
+        },
+        "result": {
+          "status": "failed",
+          "summary": {
+            "passed": 0,
+            "failed": 1,
+            "errors": 0,
+            "skipped": 0
+          },
+          "stdout": "F                                                                        [100%]\n================================== FAILURES ===================================\n__________________ test_login_invalid_credentials[chromium] ___________________\n\npage = <Page url='https://opensource-demo.orangehrmlive.com/web/index.php/auth/login'>\n\n    @pytest.mark.ui\n    @pytest.mark.priority(\"P1\")\n    @pytest.mark.severity(\"high\")\n    @pytest.mark.tags(\"ui\", \"negative\", \"state\")\n    def test_login_invalid_credentials(page: Page):\n        \"\"\"\n        Test login with various invalid credentials.\n        Linked Requirements: REQ-001\n        \"\"\"\n        test_cases = [\n            {\n                \"name\": \"invalid_username_invalid_password\",\n                \"inputs\": {\"username\": \"invalidUser\", \"password\": \"invalidPass\"},\n                \"expected\": {\n                    \"error_visible\": True,\n                    \"error_any_of\": [\"Invalid credentials\"],\n                    \"url_contains\": \"/auth/login\",\n                    \"stays_on_page\": True\n                }\n            },\n            {\n                \"name\": \"empty_username_valid_password\",\n                \"inputs\": {\"username\": \"\", \"password\": \"validPass\"},\n                \"expected\": {\n                    \"error_visible\": True,\n                    \"error_any_of\": [\"Required\"],\n                    \"url_contains\": \"/auth/login\",\n                    \"stays_on_page\": True\n                }\n            },\n            {\n                \"name\": \"valid_username_empty_password\",\n                \"inputs\": {\"username\": \"validUser\", \"password\": \"\"},\n                \"expected\": {\n                    \"error_visible\": True,\n                    \"error_any_of\": [\"Required\"],\n                    \"url_contains\": \"/auth/login\",\n                    \"stays_on_page\": True\n                }\n            },\n            {\n                \"name\": \"whitespace_username_password\",\n                \"inputs\": {\"username\": \"   \", \"password\": \"   \"},\n                \"expected\": {\n                    \"error_visible\": True,\n                    \"error_any_of\": [\"Invalid credentials\"],\n                    \"url_contains\": \"/auth/login\",\n                    \"stays_on_page\": True\n                }\n            },\n            {\n                \"name\": \"long_username_long_password\",\n                \"inputs\": {\"username\": \"a\", \"password\": \"b\"},\n                \"expected\": {\n                    \"error_visible\": True,\n                    \"error_any_of\": [\"Invalid credentials\"],\n                    \"url_contains\": \"/auth/login\",\n                    \"stays_on_page\": True\n                }\n            },\n            {\n                \"name\": \"special_chars_username_password\",\n                \"inputs\": {\"username\": \"!@#$%^&*()\", \"password\": \"!@#$%^&*()\"},\n                \"expected\": {\n                    \"error_visible\": True,\n                    \"error_any_of\": [\"Invalid credentials\"],\n                    \"url_contains\": \"/auth/login\",\n                    \"stays_on_page\": True\n                }\n            },\n            {\n                \"name\": \"unicode_username_password\",\n                \"inputs\": {\"username\": \"\\u7528\\u6237\", \"password\": \"\\u5bc6\\u7801\"},\n                \"expected\": {\n                    \"error_visible\": True,\n                    \"error_any_of\": [\"Invalid credentials\"],\n                    \"url_contains\": \"/auth/login\",\n                    \"stays_on_page\": True\n                }\n            },\n            {\n                \"name\": \"repeated_attempts\",\n                \"inputs\": {\"username\": \"invalidUser\", \"password\": \"invalidPass\"},\n                \"expected\": {\n                    \"error_visible\": True,\n                    \"error_any_of\": [\"Invalid credentials\"],\n                    \"url_contains\": \"/auth/login\",\n                    \"stays_on_page\": True\n                }\n            }\n        ]\n    \n        for case in test_cases:\n            page.goto(APP_BASE_URL + \"/web/index.php/auth/login\")\n            page.fill('input[name=\"username\"]', case[\"inputs\"][\"username\"])\n            page.fill('input[name=\"password\"]', case[\"inputs\"][\"password\"])\n            page.click('button[type=\"submit\"]')\n    \n            if case[\"expected\"][\"error_visible\"]:\n>               expect(page.locator('[role=\"alert\"]')).to_be_visible()\nE               AssertionError: Locator expected to be visible\nE               Actual value: None\nE               Error: element(s) not found \nE               Call log:\nE                 - Expect \"to_be_visible\" with timeout 5000ms\nE                 - waiting for locator(\"[role=\\\"alert\\\"]\")\n\ntests\\login_invalid_credentials.py:106: AssertionError\n============================== warnings summary ===============================\ntests\\login_invalid_credentials.py:8\n  D:\\Automation\\qa_agent\\tests\\login_invalid_credentials.py:8: PytestUnknownMarkWarning: Unknown pytest.mark.priority - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html\n    @pytest.mark.priority(\"P1\")\n\ntests\\login_invalid_credentials.py:9\n  D:\\Automation\\qa_agent\\tests\\login_invalid_credentials.py:9: PytestUnknownMarkWarning: Unknown pytest.mark.severity - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html\n    @pytest.mark.severity(\"high\")\n\ntests\\login_invalid_credentials.py:10\n  D:\\Automation\\qa_agent\\tests\\login_invalid_credentials.py:10: PytestUnknownMarkWarning: Unknown pytest.mark.tags - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html\n    @pytest.mark.tags(\"ui\", \"negative\", \"state\")\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nFAILED tests/login_invalid_credentials.py::test_login_invalid_credentials[chromium]\n",
+          "stderr": "",
+          "exit_code": 1,
+          "report_file": "data\\reports\\report_20260219_193824_741905.json",
+          "junit_file": "data\\reports\\junit_20260219_193824_741905.xml"
+        }
+      }
+    ],
+    "timestamp": "2026-02-19T19:39:08.940865"
+  },
+  "results": [
+    {
+      "step": {
+        "tool": "playwright_runner",
+        "args": {
+          "path": "tests/login_invalid_credentials.py",
+          "description": "Test login functionality with invalid credentials",
+          "priority": "P1",
+          "severity": "high",
+          "tags": [
+            "ui",
+            "negative",
+            "state"
+          ],
+          "requires_auth": false,
+          "linked_requirements": [
+            "REQ-001"
+          ],
+          "data": [
+            {
+              "name": "invalid_username_invalid_password",
+              "techniques": [
+                "ecp",
+                "error_guessing"
+              ],
+              "inputs": {
+                "username": "invalidUser",
+                "password": "invalidPass"
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/auth/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid credentials"
+                ],
+                "stays_on_page": true
+              }
+            },
+            {
+              "name": "empty_username_empty_password",
+              "techniques": [
+                "ecp",
+                "error_guessing"
+              ],
+              "inputs": {
+                "username": "",
+                "password": ""
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/auth/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid credentials"
+                ],
+                "stays_on_page": true
+              }
+            },
+            {
+              "name": "whitespace_username_whitespace_password",
+              "techniques": [
+                "ecp",
+                "error_guessing"
+              ],
+              "inputs": {
+                "username": "   ",
+                "password": "   "
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/auth/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid credentials"
+                ],
+                "stays_on_page": true
+              }
+            },
+            {
+              "name": "special_chars_username_special_chars_password",
+              "techniques": [
+                "error_guessing"
+              ],
+              "inputs": {
+                "username": "!@#$%^&*()",
+                "password": "!@#$%^&*()"
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/auth/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid credentials"
+                ],
+                "stays_on_page": true
+              }
+            },
+            {
+              "name": "unicode_username_unicode_password",
+              "techniques": [
+                "error_guessing"
+              ],
+              "inputs": {
+                "username": "\u7528\u6237",
+                "password": "\u5bc6\u7801"
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/auth/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid credentials"
+                ],
+                "stays_on_page": true
+              }
+            },
+            {
+              "name": "repeated_attempts",
+              "techniques": [
+                "state"
+              ],
+              "inputs": {
+                "username": "invalidUser",
+                "password": "invalidPass"
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/auth/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid credentials"
+                ],
+                "stays_on_page": true
+              }
+            }
+          ],
+          "base_url": "https://opensource-demo.orangehrmlive.com"
+        }
+      },
+      "result": {
+        "status": "failed",
+        "summary": {
+          "passed": 0,
+          "failed": 1,
+          "errors": 0,
+          "skipped": 0
+        },
+        "stdout": "F                                                                        [100%]\n================================== FAILURES ===================================\n__________________ test_login_invalid_credentials[chromium] ___________________\n\npage = <Page url='https://opensource-demo.orangehrmlive.com/web/index.php/auth/login'>\n\n    @pytest.mark.ui\n    @pytest.mark.priority(\"P1\")\n    @pytest.mark.severity(\"high\")\n    @pytest.mark.tags(\"ui\", \"negative\", \"state\")\n    def test_login_invalid_credentials(page: Page):\n        \"\"\"\n        Test login with various invalid credentials.\n        Linked Requirements: REQ-001\n        \"\"\"\n        test_cases = [\n            {\n                \"name\": \"invalid_username_invalid_password\",\n                \"inputs\": {\"username\": \"invalidUser\", \"password\": \"invalidPass\"},\n                \"expected\": {\n                    \"error_visible\": True,\n                    \"error_any_of\": [\"Invalid credentials\"],\n                    \"url_contains\": \"/auth/login\",\n                    \"stays_on_page\": True\n                }\n            },\n            {\n                \"name\": \"empty_username_valid_password\",\n                \"inputs\": {\"username\": \"\", \"password\": \"validPass\"},\n                \"expected\": {\n                    \"error_visible\": True,\n                    \"error_any_of\": [\"Required\"],\n                    \"url_contains\": \"/auth/login\",\n                    \"stays_on_page\": True\n                }\n            },\n            {\n                \"name\": \"valid_username_empty_password\",\n                \"inputs\": {\"username\": \"validUser\", \"password\": \"\"},\n                \"expected\": {\n                    \"error_visible\": True,\n                    \"error_any_of\": [\"Required\"],\n                    \"url_contains\": \"/auth/login\",\n                    \"stays_on_page\": True\n                }\n            },\n            {\n                \"name\": \"whitespace_username_password\",\n                \"inputs\": {\"username\": \"   \", \"password\": \"   \"},\n                \"expected\": {\n                    \"error_visible\": True,\n                    \"error_any_of\": [\"Invalid credentials\"],\n                    \"url_contains\": \"/auth/login\",\n                    \"stays_on_page\": True\n                }\n            },\n            {\n                \"name\": \"long_username_long_password\",\n                \"inputs\": {\"username\": \"a\", \"password\": \"b\"},\n                \"expected\": {\n                    \"error_visible\": True,\n                    \"error_any_of\": [\"Invalid credentials\"],\n                    \"url_contains\": \"/auth/login\",\n                    \"stays_on_page\": True\n                }\n            },\n            {\n                \"name\": \"special_chars_username_password\",\n                \"inputs\": {\"username\": \"!@#$%^&*()\", \"password\": \"!@#$%^&*()\"},\n                \"expected\": {\n                    \"error_visible\": True,\n                    \"error_any_of\": [\"Invalid credentials\"],\n                    \"url_contains\": \"/auth/login\",\n                    \"stays_on_page\": True\n                }\n            },\n            {\n                \"name\": \"unicode_username_password\",\n                \"inputs\": {\"username\": \"\\u7528\\u6237\", \"password\": \"\\u5bc6\\u7801\"},\n                \"expected\": {\n                    \"error_visible\": True,\n                    \"error_any_of\": [\"Invalid credentials\"],\n                    \"url_contains\": \"/auth/login\",\n                    \"stays_on_page\": True\n                }\n            },\n            {\n                \"name\": \"repeated_attempts\",\n                \"inputs\": {\"username\": \"invalidUser\", \"password\": \"invalidPass\"},\n                \"expected\": {\n                    \"error_visible\": True,\n                    \"error_any_of\": [\"Invalid credentials\"],\n                    \"url_contains\": \"/auth/login\",\n                    \"stays_on_page\": True\n                }\n            }\n        ]\n    \n        for case in test_cases:\n            page.goto(APP_BASE_URL + \"/web/index.php/auth/login\")\n            page.fill('input[name=\"username\"]', case[\"inputs\"][\"username\"])\n            page.fill('input[name=\"password\"]', case[\"inputs\"][\"password\"])\n            page.click('button[type=\"submit\"]')\n    \n            if case[\"expected\"][\"error_visible\"]:\n>               expect(page.locator('[role=\"alert\"]')).to_be_visible()\nE               AssertionError: Locator expected to be visible\nE               Actual value: None\nE               Error: element(s) not found \nE               Call log:\nE                 - Expect \"to_be_visible\" with timeout 5000ms\nE                 - waiting for locator(\"[role=\\\"alert\\\"]\")\n\ntests\\login_invalid_credentials.py:106: AssertionError\n============================== warnings summary ===============================\ntests\\login_invalid_credentials.py:8\n  D:\\Automation\\qa_agent\\tests\\login_invalid_credentials.py:8: PytestUnknownMarkWarning: Unknown pytest.mark.priority - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html\n    @pytest.mark.priority(\"P1\")\n\ntests\\login_invalid_credentials.py:9\n  D:\\Automation\\qa_agent\\tests\\login_invalid_credentials.py:9: PytestUnknownMarkWarning: Unknown pytest.mark.severity - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html\n    @pytest.mark.severity(\"high\")\n\ntests\\login_invalid_credentials.py:10\n  D:\\Automation\\qa_agent\\tests\\login_invalid_credentials.py:10: PytestUnknownMarkWarning: Unknown pytest.mark.tags - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html\n    @pytest.mark.tags(\"ui\", \"negative\", \"state\")\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nFAILED tests/login_invalid_credentials.py::test_login_invalid_credentials[chromium]\n",
+        "stderr": "",
+        "exit_code": 1,
+        "report_file": "data\\reports\\report_20260219_193824_741905.json",
+        "junit_file": "data\\reports\\junit_20260219_193824_741905.xml"
+      }
+    }
+  ]
+}
