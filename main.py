@@ -12,9 +12,60 @@ from agent.tools import pytest_runner, playwright_runner, api_caller, bug_report
 from agent.codegen.generator import TestGenerator
 from agent.integrations.slack_notifier import send_slack_alert
 from agent.utils import memory as default_memory
-from agent.extenstions import vector_memory
+from agent.extensions import vector_memory
 from agent.ticket_router import fetch_ticket
-from openai import OpenAI
+from agent.utils.openai_wrapper import chat_completion
+
+from fastapi import FastAPI
+from starlette.middleware.sessions import SessionMiddleware
+
+from auth.db import Base, engine
+from auth.routes import router as auth_router
+
+from pathlib import Path
+from fastapi import HTTPException
+from fastapi.responses import FileResponse
+
+app = FastAPI()
+
+ARTIFACT_DIR = Path(os.getenv("ARTIFACT_DIR", "artifacts")).resolve()
+ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
+
+# IMPORTANT: set a real secret in env for prod
+SECRET_KEY = os.getenv("SESSION_SECRET", "dev-only-change-me")
+app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
+
+# create tables
+Base.metadata.create_all(bind=engine)
+
+# auth pages
+app.include_router(auth_router)
+
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import RedirectResponse, FileResponse
+from fastapi import Request
+
+BASE_DIR = Path(__file__).resolve().parent
+UI_DIR = BASE_DIR / "ui"
+
+# ✅ serve your UI static files (css/js/images)
+if UI_DIR.exists():
+    app.mount("/static", StaticFiles(directory=str(UI_DIR)), name="static")
+
+# ✅ root should always send unauth users to /login
+@app.get("/", include_in_schema=False)
+def root(request: Request):
+    if request.session.get("user_id"):
+        return RedirectResponse(url="/app", status_code=303)
+    return RedirectResponse(url="/login", status_code=303)
+
+# ✅ after login, send users to /app (your dashboard UI)
+@app.get("/app", include_in_schema=False)
+def serve_app():
+    index = UI_DIR / "index.html"
+    if not index.exists():
+        raise HTTPException(status_code=404, detail="UI index.html not found")
+    return FileResponse(str(index))
 
 def ensure_conftest_base_url():
     cf = Path("conftest.py")
@@ -38,10 +89,10 @@ def explain_mode(question: str) -> str:
     if not api_key:
         raise RuntimeError("OPENAI_API_KEY is missing")
 
-    client = OpenAI(api_key=api_key)
+    #client = OpenAI(api_key=api_key)
 
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
+    response = chat_completion(
+        #model="gpt-4o-mini",
         messages=[
             {
                 "role": "system",
@@ -53,7 +104,9 @@ def explain_mode(question: str) -> str:
             },
             {"role": "user", "content": question},
         ],
+        model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
         temperature=0.3,
+        service_name="qa-agent-explain",
     )
 
     answer = (response.choices[0].message.content or "").strip()
@@ -320,7 +373,7 @@ def main():
 
     # 📚 Explain mode
     if args.explain:
-        explain_mode(args.explain)
+        print(explain_mode(args.explain))
         return
 
     # 📄 Ticket mode

@@ -1,0 +1,93 @@
+{
+  "environments": ["SIT", "UAT", "PROD"],
+
+  "permissions": [
+    "runs:create",
+    "runs:view",
+    "runs:cancel",
+    "artifacts:download",
+
+    "history:view",
+
+    "health:view",
+    "health:diagnose",
+
+    "alerts:view",
+    "alerts:configure",
+
+    "settings:environment:update",
+    "settings:model:view",
+    "settings:model:update",
+
+    "users:view",
+    "users:invite",
+    "users:disable",
+    "roles:assign",
+
+    "audit:view",
+
+    "prod:runs:create",
+    "prod:diagnose",
+    "prod:model:update"
+  ],
+
+  "roles": {
+    "owner": {
+      "env_access": ["SIT", "UAT", "PROD"],
+      "permissions": ["*"]
+    },
+
+    "admin": {
+      "env_access": ["SIT", "UAT"],
+      "permissions": [
+        "runs:create",
+        "runs:view",
+        "runs:cancel",
+        "artifacts:download",
+        "history:view",
+
+        "health:view",
+        "health:diagnose",
+
+        "alerts:view",
+        "alerts:configure",
+
+        "settings:environment:update",
+        "settings:model:view",
+        "settings:model:update",
+
+        "users:view",
+        "users:invite",
+        "users:disable",
+        "roles:assign",
+
+        "audit:view"
+      ]
+    },
+
+    "member": {
+      "env_access": ["SIT", "UAT"],
+      "permissions": [
+        "runs:create",
+        "runs:view",
+        "runs:cancel",
+        "artifacts:download",
+        "history:view",
+        "health:view",
+        "alerts:view",
+        "settings:environment:update"
+      ]
+    },
+
+    "viewer": {
+      "env_access": ["SIT", "UAT"],
+      "permissions": [
+        "runs:view",
+        "history:view",
+        "artifacts:download",
+        "health:view",
+        "alerts:view"
+      ]
+    }
+  }
+}

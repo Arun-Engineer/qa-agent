@@ -1,0 +1,12 @@
+{"ok": true, "service": "qa-agent-runner", "model": "gpt-4o-mini", "duration_ms": 3411, "prompt_chars": 73, "response_chars": 430}
+{"ok": true, "service": "qa-agent-runner", "model": "gpt-4o-mini", "duration_ms": 3697, "prompt_chars": 73, "response_chars": 445}
+{"ok": true, "service": "qa-agent-planner", "model": "gpt-4o-mini", "duration_ms": 25441, "prompt_chars": 4498, "response_chars": 4910}
+{"ok": true, "service": "qa-agent-runner", "model": "gpt-4o-mini", "duration_ms": 5685, "prompt_chars": 226, "response_chars": 1346}
+{"ok": true, "service": "qa-agent-runner", "model": "gpt-4o-mini", "duration_ms": 2882, "prompt_chars": 211, "response_chars": 690}
+{"ok": true, "service": "qa-agent-runner", "model": "gpt-4o-mini", "duration_ms": 4049, "prompt_chars": 226, "response_chars": 1076}
+{"ok": true, "service": "qa-agent-runner", "model": "gpt-4o-mini", "duration_ms": 5107, "prompt_chars": 226, "response_chars": 1066}
+{"ok": true, "service": "qa-agent-runner", "model": "gpt-4o-mini", "duration_ms": 4115, "prompt_chars": 225, "response_chars": 1231}
+{"ok": true, "service": "qa-agent-runner", "model": "gpt-4o-mini", "duration_ms": 4784, "prompt_chars": 225, "response_chars": 1090}
+{"ok": true, "service": "qa-agent-runner", "model": "gpt-4o-mini", "duration_ms": 6979, "prompt_chars": 251, "response_chars": 1478}
+{"ok": true, "service": "qa-agent-planner", "model": "gpt-4o-mini", "duration_ms": 18219, "prompt_chars": 4490, "response_chars": 4867}
+{"ok": true, "service": "qa-agent-runner", "model": "gpt-4o-mini", "duration_ms": 8913, "prompt_chars": 244, "response_chars": 1041}

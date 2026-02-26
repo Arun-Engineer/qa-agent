@@ -1,0 +1,652 @@
+{
+  "spec": "user should not be able to login with invalid credentials for\\nhttps://opensource-demo.orangehrmlive.com/web/index.php/auth/login and valid credentials are Username : Admin\n\nPassword : admin123",
+  "plan": {
+    "goal": "Verify that user cannot login with invalid credentials",
+    "assumptions": [
+      "The login page is accessible at the provided URL.",
+      "The application is in a state ready for login attempts."
+    ],
+    "steps": [
+      {
+        "tool": "playwright_runner",
+        "args": {
+          "path": "tests/login_invalid_credentials.py",
+          "description": "Test login with invalid credentials",
+          "priority": "P1",
+          "severity": "high",
+          "tags": [
+            "ui",
+            "negative",
+            "state"
+          ],
+          "requires_auth": false,
+          "linked_requirements": [
+            "REQ-001"
+          ],
+          "data": [
+            {
+              "name": "Invalid Username and Password",
+              "techniques": [
+                "ecp"
+              ],
+              "inputs": {
+                "username": "invalidUser",
+                "password": "invalidPass"
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/auth/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid",
+                  "Required",
+                  "Error"
+                ],
+                "stays_on_page": true
+              }
+            },
+            {
+              "name": "Valid Username and Invalid Password",
+              "techniques": [
+                "ecp"
+              ],
+              "inputs": {
+                "username": "Admin",
+                "password": "wrongPassword"
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/auth/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid",
+                  "Required",
+                  "Error"
+                ],
+                "stays_on_page": true
+              }
+            },
+            {
+              "name": "Invalid Username and Valid Password",
+              "techniques": [
+                "ecp"
+              ],
+              "inputs": {
+                "username": "wrongUser",
+                "password": "admin123"
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/auth/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid",
+                  "Required",
+                  "Error"
+                ],
+                "stays_on_page": true
+              }
+            },
+            {
+              "name": "Empty Username and Password",
+              "techniques": [
+                "error_guessing"
+              ],
+              "inputs": {
+                "username": "",
+                "password": ""
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/auth/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid",
+                  "Required",
+                  "Error"
+                ],
+                "stays_on_page": true
+              }
+            },
+            {
+              "name": "Whitespace Username and Password",
+              "techniques": [
+                "error_guessing"
+              ],
+              "inputs": {
+                "username": "   ",
+                "password": "   "
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/auth/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid",
+                  "Required",
+                  "Error"
+                ],
+                "stays_on_page": true
+              }
+            },
+            {
+              "name": "Long Username and Password",
+              "techniques": [
+                "bva"
+              ],
+              "inputs": {
+                "username": "a",
+                "password": "a"
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/auth/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid",
+                  "Required",
+                  "Error"
+                ],
+                "stays_on_page": true
+              }
+            },
+            {
+              "name": "Special Characters in Username and Password",
+              "techniques": [
+                "error_guessing"
+              ],
+              "inputs": {
+                "username": "!@#$%^&*()",
+                "password": "!@#$%^&*()"
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/auth/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid",
+                  "Required",
+                  "Error"
+                ],
+                "stays_on_page": true
+              }
+            },
+            {
+              "name": "Unicode Characters in Username and Password",
+              "techniques": [
+                "error_guessing"
+              ],
+              "inputs": {
+                "username": "\u7528\u6237",
+                "password": "\u5bc6\u7801"
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/auth/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid",
+                  "Required",
+                  "Error"
+                ],
+                "stays_on_page": true
+              }
+            }
+          ],
+          "base_url": "https://opensource-demo.orangehrmlive.com"
+        }
+      }
+    ]
+  },
+  "results": [
+    {
+      "step": {
+        "tool": "playwright_runner",
+        "args": {
+          "path": "tests/login_invalid_credentials.py",
+          "description": "Test login with invalid credentials",
+          "priority": "P1",
+          "severity": "high",
+          "tags": [
+            "ui",
+            "negative",
+            "state"
+          ],
+          "requires_auth": false,
+          "linked_requirements": [
+            "REQ-001"
+          ],
+          "data": [
+            {
+              "name": "Invalid Username and Password",
+              "techniques": [
+                "ecp"
+              ],
+              "inputs": {
+                "username": "invalidUser",
+                "password": "invalidPass"
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/auth/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid",
+                  "Required",
+                  "Error"
+                ],
+                "stays_on_page": true
+              }
+            },
+            {
+              "name": "Valid Username and Invalid Password",
+              "techniques": [
+                "ecp"
+              ],
+              "inputs": {
+                "username": "Admin",
+                "password": "wrongPassword"
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/auth/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid",
+                  "Required",
+                  "Error"
+                ],
+                "stays_on_page": true
+              }
+            },
+            {
+              "name": "Invalid Username and Valid Password",
+              "techniques": [
+                "ecp"
+              ],
+              "inputs": {
+                "username": "wrongUser",
+                "password": "admin123"
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/auth/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid",
+                  "Required",
+                  "Error"
+                ],
+                "stays_on_page": true
+              }
+            },
+            {
+              "name": "Empty Username and Password",
+              "techniques": [
+                "error_guessing"
+              ],
+              "inputs": {
+                "username": "",
+                "password": ""
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/auth/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid",
+                  "Required",
+                  "Error"
+                ],
+                "stays_on_page": true
+              }
+            },
+            {
+              "name": "Whitespace Username and Password",
+              "techniques": [
+                "error_guessing"
+              ],
+              "inputs": {
+                "username": "   ",
+                "password": "   "
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/auth/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid",
+                  "Required",
+                  "Error"
+                ],
+                "stays_on_page": true
+              }
+            },
+            {
+              "name": "Long Username and Password",
+              "techniques": [
+                "bva"
+              ],
+              "inputs": {
+                "username": "a",
+                "password": "a"
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/auth/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid",
+                  "Required",
+                  "Error"
+                ],
+                "stays_on_page": true
+              }
+            },
+            {
+              "name": "Special Characters in Username and Password",
+              "techniques": [
+                "error_guessing"
+              ],
+              "inputs": {
+                "username": "!@#$%^&*()",
+                "password": "!@#$%^&*()"
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/auth/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid",
+                  "Required",
+                  "Error"
+                ],
+                "stays_on_page": true
+              }
+            },
+            {
+              "name": "Unicode Characters in Username and Password",
+              "techniques": [
+                "error_guessing"
+              ],
+              "inputs": {
+                "username": "\u7528\u6237",
+                "password": "\u5bc6\u7801"
+              },
+              "expected": {
+                "outcome": "error",
+                "status_code": 200,
+                "url_contains": "/auth/login",
+                "error_visible": true,
+                "error_any_of": [
+                  "Invalid",
+                  "Required",
+                  "Error"
+                ],
+                "stays_on_page": true
+              }
+            }
+          ],
+          "base_url": "https://opensource-demo.orangehrmlive.com"
+        }
+      },
+      "result": {
+        "status": "failed",
+        "summary": {
+          "passed": 5,
+          "failed": 1,
+          "errors": 0,
+          "skipped": 0
+        },
+        "stdout": "....F.                                                                   [100%]\n================================== FAILURES ===================================\n_ test_login_invalid_credentials[chromium-unicode_username_unicode_password] __\n\npage = <Page url='https://opensource-demo.orangehrmlive.com/web/index.php/auth/login'>\ncase = {'expect': 'invalid_credentials', 'name': 'unicode_username_unicode_password', 'password': '\\u5bc6\\u7801', 'username': '\\u7528\\u6237'}\n\n    @pytest.mark.parametrize(\"case\", CASES, ids=[c[\"name\"] for c in CASES])\n    def test_login_invalid_credentials(page: Page, case):\n        repeat = case.get(\"repeat\", 1)\n    \n        for _ in range(repeat):\n>           page.goto(LOGIN_URL)\n\ntests\\login_invalid_credentials.py:43: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _\n.venv\\Lib\\site-packages\\playwright\\sync_api\\_generated.py:9054: in goto\n    self._sync(\n.venv\\Lib\\site-packages\\playwright\\_impl\\_page.py:552: in goto\n    return await self._main_frame.goto(**locals_to_params(locals()))\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n.venv\\Lib\\site-packages\\playwright\\_impl\\_frame.py:153: in goto\n    await self._channel.send(\n.venv\\Lib\\site-packages\\playwright\\_impl\\_connection.py:69: in send\n    return await self._connection.wrap_api_call(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _\n\nself = <playwright._impl._connection.Connection object at 0x00000216583967D0>\ncb = <function Channel.send.<locals>.<lambda> at 0x000002165969B4C0>\nis_internal = False, title = None\n\n    async def wrap_api_call(\n        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None\n    ) -> Any:\n        if self._api_zone.get():\n            return await cb()\n        task = asyncio.current_task(self._loop)\n        st: List[inspect.FrameInfo] = getattr(\n            task, \"__pw_stack__\", None\n        ) or inspect.stack(0)\n    \n        parsed_st = _extract_stack_trace_information_from_stack(st, is_internal, title)\n        self._api_zone.set(parsed_st)\n        try:\n            return await cb()\n        except Exception as error:\n>           raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nE           playwright._impl._errors.TimeoutError: Page.goto: Timeout 30000ms exceeded.\nE           Call log:\nE             - navigating to \"https://opensource-demo.orangehrmlive.com/web/index.php/auth/login\", waiting until \"load\"\n\n.venv\\Lib\\site-packages\\playwright\\_impl\\_connection.py:559: TimeoutError\n=========================== short test summary info ===========================\nFAILED tests/login_invalid_credentials.py::test_login_invalid_credentials[chromium-unicode_username_unicode_password]\n",
+        "stderr": "",
+        "exit_code": 1,
+        "report_file": "data\\reports\\report_20260220_114302_783274.json",
+        "junit_file": "data\\reports\\junit_20260220_114302_783274.xml"
+      }
+    }
+  ],
+  "response": {
+    "status": "completed",
+    "goal": "Verify that user cannot login with invalid credentials",
+    "assumptions": [
+      "The login page is accessible at the provided URL.",
+      "The application is in a state ready for login attempts."
+    ],
+    "total_steps": 1,
+    "passed": 5,
+    "failed": 1,
+    "results": [
+      {
+        "step": {
+          "tool": "playwright_runner",
+          "args": {
+            "path": "tests/login_invalid_credentials.py",
+            "description": "Test login with invalid credentials",
+            "priority": "P1",
+            "severity": "high",
+            "tags": [
+              "ui",
+              "negative",
+              "state"
+            ],
+            "requires_auth": false,
+            "linked_requirements": [
+              "REQ-001"
+            ],
+            "data": [
+              {
+                "name": "Invalid Username and Password",
+                "techniques": [
+                  "ecp"
+                ],
+                "inputs": {
+                  "username": "invalidUser",
+                  "password": "invalidPass"
+                },
+                "expected": {
+                  "outcome": "error",
+                  "status_code": 200,
+                  "url_contains": "/auth/login",
+                  "error_visible": true,
+                  "error_any_of": [
+                    "Invalid",
+                    "Required",
+                    "Error"
+                  ],
+                  "stays_on_page": true
+                }
+              },
+              {
+                "name": "Valid Username and Invalid Password",
+                "techniques": [
+                  "ecp"
+                ],
+                "inputs": {
+                  "username": "Admin",
+                  "password": "wrongPassword"
+                },
+                "expected": {
+                  "outcome": "error",
+                  "status_code": 200,
+                  "url_contains": "/auth/login",
+                  "error_visible": true,
+                  "error_any_of": [
+                    "Invalid",
+                    "Required",
+                    "Error"
+                  ],
+                  "stays_on_page": true
+                }
+              },
+              {
+                "name": "Invalid Username and Valid Password",
+                "techniques": [
+                  "ecp"
+                ],
+                "inputs": {
+                  "username": "wrongUser",
+                  "password": "admin123"
+                },
+                "expected": {
+                  "outcome": "error",
+                  "status_code": 200,
+                  "url_contains": "/auth/login",
+                  "error_visible": true,
+                  "error_any_of": [
+                    "Invalid",
+                    "Required",
+                    "Error"
+                  ],
+                  "stays_on_page": true
+                }
+              },
+              {
+                "name": "Empty Username and Password",
+                "techniques": [
+                  "error_guessing"
+                ],
+                "inputs": {
+                  "username": "",
+                  "password": ""
+                },
+                "expected": {
+                  "outcome": "error",
+                  "status_code": 200,
+                  "url_contains": "/auth/login",
+                  "error_visible": true,
+                  "error_any_of": [
+                    "Invalid",
+                    "Required",
+                    "Error"
+                  ],
+                  "stays_on_page": true
+                }
+              },
+              {
+                "name": "Whitespace Username and Password",
+                "techniques": [
+                  "error_guessing"
+                ],
+                "inputs": {
+                  "username": "   ",
+                  "password": "   "
+                },
+                "expected": {
+                  "outcome": "error",
+                  "status_code": 200,
+                  "url_contains": "/auth/login",
+                  "error_visible": true,
+                  "error_any_of": [
+                    "Invalid",
+                    "Required",
+                    "Error"
+                  ],
+                  "stays_on_page": true
+                }
+              },
+              {
+                "name": "Long Username and Password",
+                "techniques": [
+                  "bva"
+                ],
+                "inputs": {
+                  "username": "a",
+                  "password": "a"
+                },
+                "expected": {
+                  "outcome": "error",
+                  "status_code": 200,
+                  "url_contains": "/auth/login",
+                  "error_visible": true,
+                  "error_any_of": [
+                    "Invalid",
+                    "Required",
+                    "Error"
+                  ],
+                  "stays_on_page": true
+                }
+              },
+              {
+                "name": "Special Characters in Username and Password",
+                "techniques": [
+                  "error_guessing"
+                ],
+                "inputs": {
+                  "username": "!@#$%^&*()",
+                  "password": "!@#$%^&*()"
+                },
+                "expected": {
+                  "outcome": "error",
+                  "status_code": 200,
+                  "url_contains": "/auth/login",
+                  "error_visible": true,
+                  "error_any_of": [
+                    "Invalid",
+                    "Required",
+                    "Error"
+                  ],
+                  "stays_on_page": true
+                }
+              },
+              {
+                "name": "Unicode Characters in Username and Password",
+                "techniques": [
+                  "error_guessing"
+                ],
+                "inputs": {
+                  "username": "\u7528\u6237",
+                  "password": "\u5bc6\u7801"
+                },
+                "expected": {
+                  "outcome": "error",
+                  "status_code": 200,
+                  "url_contains": "/auth/login",
+                  "error_visible": true,
+                  "error_any_of": [
+                    "Invalid",
+                    "Required",
+                    "Error"
+                  ],
+                  "stays_on_page": true
+                }
+              }
+            ],
+            "base_url": "https://opensource-demo.orangehrmlive.com"
+          }
+        },
+        "result": {
+          "status": "failed",
+          "summary": {
+            "passed": 5,
+            "failed": 1,
+            "errors": 0,
+            "skipped": 0
+          },
+          "stdout": "....F.                                                                   [100%]\n================================== FAILURES ===================================\n_ test_login_invalid_credentials[chromium-unicode_username_unicode_password] __\n\npage = <Page url='https://opensource-demo.orangehrmlive.com/web/index.php/auth/login'>\ncase = {'expect': 'invalid_credentials', 'name': 'unicode_username_unicode_password', 'password': '\\u5bc6\\u7801', 'username': '\\u7528\\u6237'}\n\n    @pytest.mark.parametrize(\"case\", CASES, ids=[c[\"name\"] for c in CASES])\n    def test_login_invalid_credentials(page: Page, case):\n        repeat = case.get(\"repeat\", 1)\n    \n        for _ in range(repeat):\n>           page.goto(LOGIN_URL)\n\ntests\\login_invalid_credentials.py:43: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _\n.venv\\Lib\\site-packages\\playwright\\sync_api\\_generated.py:9054: in goto\n    self._sync(\n.venv\\Lib\\site-packages\\playwright\\_impl\\_page.py:552: in goto\n    return await self._main_frame.goto(**locals_to_params(locals()))\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n.venv\\Lib\\site-packages\\playwright\\_impl\\_frame.py:153: in goto\n    await self._channel.send(\n.venv\\Lib\\site-packages\\playwright\\_impl\\_connection.py:69: in send\n    return await self._connection.wrap_api_call(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _\n\nself = <playwright._impl._connection.Connection object at 0x00000216583967D0>\ncb = <function Channel.send.<locals>.<lambda> at 0x000002165969B4C0>\nis_internal = False, title = None\n\n    async def wrap_api_call(\n        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None\n    ) -> Any:\n        if self._api_zone.get():\n            return await cb()\n        task = asyncio.current_task(self._loop)\n        st: List[inspect.FrameInfo] = getattr(\n            task, \"__pw_stack__\", None\n        ) or inspect.stack(0)\n    \n        parsed_st = _extract_stack_trace_information_from_stack(st, is_internal, title)\n        self._api_zone.set(parsed_st)\n        try:\n            return await cb()\n        except Exception as error:\n>           raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nE           playwright._impl._errors.TimeoutError: Page.goto: Timeout 30000ms exceeded.\nE           Call log:\nE             - navigating to \"https://opensource-demo.orangehrmlive.com/web/index.php/auth/login\", waiting until \"load\"\n\n.venv\\Lib\\site-packages\\playwright\\_impl\\_connection.py:559: TimeoutError\n=========================== short test summary info ===========================\nFAILED tests/login_invalid_credentials.py::test_login_invalid_credentials[chromium-unicode_username_unicode_password]\n",
+          "stderr": "",
+          "exit_code": 1,
+          "report_file": "data\\reports\\report_20260220_114302_783274.json",
+          "junit_file": "data\\reports\\junit_20260220_114302_783274.xml"
+        }
+      }
+    ],
+    "timestamp": "2026-02-20T11:46:10.979066"
+  },
+  "timestamp": "2026-02-20T11:46:10.979066"
+}

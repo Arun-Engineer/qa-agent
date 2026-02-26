@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="38.749" timestamp="2026-02-20T01:08:30.017171+05:30" hostname="DESKTOP-VNS3AN1"><testcase classname="tests.login_invalid_credentials" name="test_login_invalid_credentials[chromium]" time="38.501"><failure message="AssertionError: Locator expected to be visible&#10;Actual value: None&#10;Error: element(s) not found &#10;Call log:&#10;  - Expect &quot;to_be_visible&quot; with timeout 5000ms&#10;  - waiting for locator(&quot;[role=\&quot;alert\&quot;]&quot;)">page = &lt;Page url='https://opensource-demo.orangehrmlive.com/web/index.php/auth/login'&gt;
+
+    @pytest.mark.ui
+    @pytest.mark.priority("P1")
+    @pytest.mark.severity("high")
+    @pytest.mark.tags("ui", "negative", "state")
+    def test_login_invalid_credentials(page: Page):
+        """
+        Test login with various invalid credentials.
+        Linked Requirements: REQ-001
+        """
+        test_cases = [
+            {
+                "name": "invalid_username_invalid_password",
+                "inputs": {"username": "invalidUser", "password": "invalidPass"},
+                "expected": {
+                    "error_visible": True,
+                    "error_any_of": ["Invalid credentials"],
+                    "url_contains": "/auth/login",
+                    "stays_on_page": True
+                }
+            },
+            {
+                "name": "empty_username_valid_password",
+                "inputs": {"username": "", "password": "validPass"},
+                "expected": {
+                    "error_visible": True,
+                    "error_any_of": ["Required"],
+                    "url_contains": "/auth/login",
+                    "stays_on_page": True
+                }
+            },
+            {
+                "name": "valid_username_empty_password",
+                "inputs": {"username": "validUser", "password": ""},
+                "expected": {
+                    "error_visible": True,
+                    "error_any_of": ["Required"],
+                    "url_contains": "/auth/login",
+                    "stays_on_page": True
+                }
+            },
+            {
+                "name": "whitespace_username_password",
+                "inputs": {"username": "   ", "password": "   "},
+                "expected": {
+                    "error_visible": True,
+                    "error_any_of": ["Invalid credentials"],
+                    "url_contains": "/auth/login",
+                    "stays_on_page": True
+                }
+            },
+            {
+                "name": "long_username_long_password",
+                "inputs": {"username": "a", "password": "b"},
+                "expected": {
+                    "error_visible": True,
+                    "error_any_of": ["Invalid credentials"],
+                    "url_contains": "/auth/login",
+                    "stays_on_page": True
+                }
+            },
+            {
+                "name": "special_chars_username_password",
+                "inputs": {"username": "!@#$%^&amp;*()", "password": "!@#$%^&amp;*()"},
+                "expected": {
+                    "error_visible": True,
+                    "error_any_of": ["Invalid credentials"],
+                    "url_contains": "/auth/login",
+                    "stays_on_page": True
+                }
+            },
+            {
+                "name": "unicode_username_password",
+                "inputs": {"username": "用户", "password": "密码"},
+                "expected": {
+                    "error_visible": True,
+                    "error_any_of": ["Invalid credentials"],
+                    "url_contains": "/auth/login",
+                    "stays_on_page": True
+                }
+            },
+            {
+                "name": "repeated_attempts",
+                "inputs": {"username": "invalidUser", "password": "invalidPass"},
+                "expected": {
+                    "error_visible": True,
+                    "error_any_of": ["Invalid credentials"],
+                    "url_contains": "/auth/login",
+                    "stays_on_page": True
+                }
+            }
+        ]
+    
+        for case in test_cases:
+            page.goto(APP_BASE_URL + "/web/index.php/auth/login")
+            page.fill('input[name="username"]', case["inputs"]["username"])
+            page.fill('input[name="password"]', case["inputs"]["password"])
+            page.click('button[type="submit"]')
+    
+            if case["expected"]["error_visible"]:
+&gt;               expect(page.locator('[role="alert"]')).to_be_visible()
+E               AssertionError: Locator expected to be visible
+E               Actual value: None
+E               Error: element(s) not found 
+E               Call log:
+E                 - Expect "to_be_visible" with timeout 5000ms
+E                 - waiting for locator("[role=\"alert\"]")
+
+tests\login_invalid_credentials.py:106: AssertionError</failure></testcase></testsuite></testsuites>

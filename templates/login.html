@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block content %}
+  <h1>Login</h1>
+
+  <form method="post" action="/login">
+    <label>Email</label>
+    <input name="email" type="email" placeholder="you@example.com" required />
+
+    <label>Password</label>
+    <div class="field">
+      <input id="login_password" name="password" type="password" placeholder="Your password" required />
+      <button type="button"
+              class="toggle-pass"
+              data-toggle="password"
+              data-target="login_password"
+              aria-label="Show/hide password"></button>
+    </div>
+
+    <button type="submit">Login</button>
+  </form>
+
+  {% if error_html %}
+    <div class="err">{{ error_html | safe }}</div>
+  {% endif %}
+
+  <div class="muted">
+    <a href="/forgot-password">Forgot password?</a>
+  </div>
+
+  <div class="muted">
+    New here? <a href="/signup">Create an account</a>
+  </div>
+{% endblock %}

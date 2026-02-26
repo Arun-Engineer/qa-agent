@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="top">
+    <div class="pill">Logged in as {{ user.email }}</div>
+    <a class="pill" href="/logout">Logout</a>
+  </div>
+
+  <h1>Dashboard</h1>
+  <div class="card">
+    <div>✅ Your agent is behind login now.</div>
+    <div style="margin-top:10px;">
+      Next step: gate your agent routes with the same session check.
+    </div>
+  </div>
+
+  <div class="card">
+    <div><b>Quick links</b></div>
+    <div class="btnlink"><a href="/docs">FastAPI Swagger</a></div>
+    <div class="btnlink"><a href="/agent-ui">Agent UI (wire this)</a></div>
+  </div>
+{% endblock %}
