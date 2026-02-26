@@ -128,3 +128,21 @@ def require_session(
     request.session["role"] = mem.role
 
     return {"account_id": acct.id, "tenant_id": tenant.id, "role": mem.role}
+
+def get_session_user(request: Request, session=Depends(require_session)):
+    role = str((session or {}).get("role") or request.session.get("role") or "viewer").lower()
+    active_env = str(request.session.get("active_env") or "UAT").upper()
+    active_model = str(request.session.get("active_model") or "gpt-5-mini")
+    extra_envs = {str(e).upper() for e in (request.session.get("extra_envs") or [])}
+    extra_perms = {str(p) for p in (request.session.get("extra_perms") or [])}
+
+    return {
+        "account_id": str((session or {}).get("account_id") or ""),
+        "tenant_id": str((session or {}).get("tenant_id") or getattr(request.state, "tenant_id", "")),
+        "role": role,
+        "active_env": active_env,
+        "active_model": active_model,
+        "extra_envs": extra_envs,
+        "extra_perms": extra_perms,
+    }
+
