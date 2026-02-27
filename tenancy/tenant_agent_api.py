@@ -10,9 +10,16 @@ from fastapi import APIRouter, Request, Depends, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import select
-from auth.db import get_db
-from tenancy.deps import require_session, require_tenant
+from auth.db import get_db, SessionLocal
+from tenancy.deps import require_session, require_tenant, get_session_user
 from agent.agent_runner import run_agent_from_spec, explain_mode
+from tenancy.audit import log_audit
+from tenancy.rbac import (
+    role_env_allowed,
+    role_has_permission,
+    available_envs_for_role,
+    effective_permissions_for_role,
+)
 
 # ensure models are registered BEFORE create_all runs in asgi import path
 import tenancy.content_models  # noqa
@@ -35,6 +42,22 @@ router = APIRouter(dependencies=[Depends(require_tenant)])
 
 ARTIFACT_BASE_DIR = Path(os.getenv("ARTIFACT_DIR", "artifacts")).resolve()
 ARTIFACT_BASE_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _normalize_env(env: str | None) -> str:
+    return str(env or "").upper().strip()
+
+
+def _require_env_permission(user: dict[str, Any], env: str, permission: str):
+    extra_envs = set(user.get("extra_envs") or set())
+    extra_perms = set(user.get("extra_perms") or set())
+    role = str(user.get("role") or "viewer").lower()
+
+    if not role_env_allowed(role, env, extra_envs):
+        raise HTTPException(status_code=403, detail=f"Environment not allowed: {env}")
+    if not role_has_permission(role, permission, extra_perms):
+        raise HTTPException(status_code=403, detail=f"Missing permission: {permission}")
+
 
 # -------------------------
 # Existing UI helpers (keep your current behavior)
@@ -122,6 +145,69 @@ def agent_ui(request: Request):
 @router.get("/control-center", include_in_schema=False)
 def agent_ui_aliases(request: Request):
     return _serve_agent_ui(request)
+
+
+@router.get("/api/me")
+def me(request: Request, user=Depends(get_session_user)):
+    env_access = available_envs_for_role(user["role"], user.get("extra_envs"))
+    permissions = effective_permissions_for_role(user["role"], user.get("extra_perms"))
+    return {
+        "account_id": user["account_id"],
+        "tenant_id": user["tenant_id"],
+        "role": user["role"],
+        "permissions": permissions,
+        "env_access": env_access,
+        "active_env": user["active_env"],
+        "active_model": user["active_model"],
+    }
+
+
+@router.post("/api/settings/environment")
+async def update_active_environment(request: Request, user=Depends(get_session_user)):
+    body = await request.json()
+    env = _normalize_env(body.get("environment"))
+    if not env:
+        raise HTTPException(status_code=400, detail="environment is required")
+
+    if not role_has_permission(user["role"], "settings:environment:update", set(user.get("extra_perms") or [])):
+        raise HTTPException(status_code=403, detail="Missing permission: settings:environment:update")
+    if not role_env_allowed(user["role"], env, set(user.get("extra_envs") or [])):
+        raise HTTPException(status_code=403, detail=f"Environment not allowed: {env}")
+
+    request.session["active_env"] = env
+
+    db = SessionLocal()
+    try:
+        log_audit(db, request, user["tenant_id"], user["account_id"], "settings.environment.update", {"active_env": env})
+    finally:
+        db.close()
+
+    return {"active_env": env}
+
+
+@router.post("/api/settings/model")
+async def update_active_model(request: Request, user=Depends(get_session_user)):
+    body = await request.json()
+    model = str(body.get("model") or "").strip()
+    env = _normalize_env(body.get("environment") or user.get("active_env"))
+    if not model:
+        raise HTTPException(status_code=400, detail="model is required")
+
+    if not env:
+        raise HTTPException(status_code=400, detail="environment is required")
+
+    required_perm = "prod:model:update" if env == "PROD" else "settings:model:update"
+    _require_env_permission(user, env, required_perm)
+
+    request.session["active_model"] = model
+
+    db = SessionLocal()
+    try:
+        log_audit(db, request, user["tenant_id"], user["account_id"], "settings.model.update", {"environment": env, "model": model})
+    finally:
+        db.close()
+
+    return {"active_model": model, "environment": env}
 
 
 # -------------------------
@@ -304,6 +390,17 @@ async def run_agent_endpoint(
     html = bool(body.get("html", False))
     trace = bool(body.get("trace", False))
     use_rag = bool(body.get("use_rag", True))
+    run_env = _normalize_env(body.get("environment") or request.session.get("active_env") or "UAT")
+
+    role = str(session.get("role") or request.session.get("role") or "viewer").lower()
+    extra_envs = {str(e).upper() for e in (request.session.get("extra_envs") or [])}
+    extra_perms = {str(p) for p in (request.session.get("extra_perms") or [])}
+    run_perm = "prod:runs:create" if run_env == "PROD" else "runs:create"
+
+    if not role_env_allowed(role, run_env, extra_envs):
+        raise HTTPException(status_code=403, detail=f"Environment not allowed: {run_env}")
+    if not role_has_permission(role, run_perm, extra_perms):
+        raise HTTPException(status_code=403, detail=f"Missing permission: {run_perm}")
 
     if not spec and spec_id:
         doc = get_spec(db, str(tenant_id), str(spec_id))
@@ -321,7 +418,17 @@ async def run_agent_endpoint(
     if not spec:
         raise HTTPException(status_code=400, detail="Provide either 'spec' or 'spec_id'")
 
-    return run_agent_from_spec(spec, html=html, trace=trace)
+    result = run_agent_from_spec(spec, html=html, trace=trace)
+
+    db = SessionLocal()
+    try:
+        log_audit(db, request, str(tenant_id), str(account_id) if account_id else None, "run.create", {"environment": run_env, "task_type": task_type, "spec_id": spec_id})
+    finally:
+        db.close()
+
+    if isinstance(result, dict):
+        result["environment"] = run_env
+    return result
 
 
 # -------------------------
