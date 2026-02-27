@@ -128,3 +128,42 @@ def require_session(
     request.session["role"] = mem.role
 
     return {"account_id": acct.id, "tenant_id": tenant.id, "role": mem.role}
+
+def get_session_user(
+    request: Request,
+    db: Session = Depends(get_db),
+    tenant: Tenant = Depends(require_tenant),
+):
+    """
+    Returns a richer session-user object for RBAC + UI header.
+    This matches what tenant_agent_api.py expects in /api/me and settings endpoints.
+    """
+    s = require_session(request=request, db=db, tenant=tenant)
+
+    role = str(s.get("role") or request.session.get("role") or "viewer").lower()
+
+    active_env = str(request.session.get("active_env") or os.getenv("DEFAULT_ENV", "UAT")).upper().strip()
+    active_model = str(
+        request.session.get("active_model")
+        or os.getenv("DEFAULT_MODEL")
+        or os.getenv("OPENAI_MODEL")
+        or "gpt-4o-mini"
+    ).strip()
+
+    # Optional per-user overrides (keep empty if you’re not using them yet)
+    extra_envs = request.session.get("extra_envs") or []
+    extra_perms = request.session.get("extra_perms") or []
+
+    user = {
+        "account_id": s["account_id"],
+        "tenant_id": s["tenant_id"],
+        "role": role,
+        "active_env": active_env,
+        "active_model": active_model,
+        "extra_envs": extra_envs,
+        "extra_perms": extra_perms,
+    }
+
+    # Handy for downstream middleware/handlers
+    request.state.user = user
+    return user
