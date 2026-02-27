@@ -1,6 +1,11 @@
 # tenancy/rbac.py
 from __future__ import annotations
 
+import json
+from dataclasses import dataclass
+from functools import lru_cache
+from pathlib import Path
+
 from fastapi import Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import select
@@ -11,6 +16,97 @@ from tenancy.models import Account, Membership, PlatformRole, Tenant
 
 TENANT_ROLE_LEVEL = {"viewer": 1, "member": 2, "admin": 3, "owner": 4}
 PLATFORM_ROLE_LEVEL = {"none": 0, "support": 1, "billing": 2, "super_admin": 3}
+RBAC_PATH = Path("config/rbac.json")
+
+
+@dataclass(frozen=True)
+class RolePolicy:
+    env_access: set[str]
+    permissions: set[str]
+
+
+@dataclass(frozen=True)
+class RBACPolicy:
+    roles: dict[str, RolePolicy]
+    all_permissions: set[str]
+    environments: set[str]
+
+
+@lru_cache(maxsize=1)
+def load_rbac_policy() -> RBACPolicy:
+    raw = json.loads(RBAC_PATH.read_text(encoding="utf-8"))
+    environments = {str(e).upper() for e in raw.get("environments", [])}
+    all_permissions = {str(p) for p in raw.get("permissions", [])}
+
+    roles: dict[str, RolePolicy] = {}
+    for role_name, role_data in raw.get("roles", {}).items():
+        roles[str(role_name).lower()] = RolePolicy(
+            env_access={str(e).upper() for e in role_data.get("env_access", [])},
+            permissions={str(p) for p in role_data.get("permissions", [])},
+        )
+
+    return RBACPolicy(roles=roles, all_permissions=all_permissions, environments=environments)
+
+
+def role_has_permission(role: str, permission: str, extra_perms: set[str] | None = None) -> bool:
+    policy = load_rbac_policy()
+    rp = policy.roles.get((role or "").lower())
+    if not rp:
+        return False
+
+    if "*" in rp.permissions:
+        return True
+
+    if extra_perms and permission in extra_perms:
+        return True
+
+    return permission in rp.permissions
+
+
+def role_env_allowed(role: str, env: str, extra_envs: set[str] | None = None) -> bool:
+    policy = load_rbac_policy()
+    env_norm = (env or "").upper()
+    if env_norm not in policy.environments:
+        return False
+
+    rp = policy.roles.get((role or "").lower())
+    if not rp:
+        return False
+
+    if extra_envs and env_norm in extra_envs:
+        return True
+
+    return env_norm in rp.env_access
+
+
+def available_envs_for_role(role: str, extra_envs: set[str] | None = None) -> list[str]:
+    policy = load_rbac_policy()
+    rp = policy.roles.get((role or "").lower())
+    base_envs = set(rp.env_access) if rp else set()
+    if extra_envs:
+        base_envs.update({e.upper() for e in extra_envs})
+    return [e for e in sorted(base_envs) if e in policy.environments]
+
+
+def effective_permissions_for_role(role: str, extra_perms: set[str] | None = None) -> list[str]:
+    """
+    Returns the effective permissions for a role, optionally merged with per-user overrides.
+    If role has wildcard (*), return all configured permissions plus extra_perms.
+    """
+    policy = load_rbac_policy()
+    rp = policy.roles.get((role or "").lower())
+    if not rp:
+        return sorted(list(extra_perms or set()))
+
+    if "*" in rp.permissions:
+        perms = set(policy.all_permissions)
+    else:
+        perms = set(rp.permissions)
+
+    if extra_perms:
+        perms.update(extra_perms)
+
+    return sorted(list(perms))
 
 
 def _require_account_id(request: Request) -> str:
