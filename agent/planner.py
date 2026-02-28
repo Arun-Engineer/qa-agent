@@ -30,7 +30,7 @@ class Planner:
         return _chat_completion(
             messages=messages,
             model=self.model,                 # default model for planner
-            service_name="qa-agent-planner",  # tracing name
+            service_name="qa-agent-planner1",  # tracing name
             **kwargs,
         )
 

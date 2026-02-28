@@ -69,11 +69,14 @@
     </div>
 
     <div id="ask" class="hidden">
-      <h2>Ask QA Architect</h2>
-      <input id="askInput" placeholder="What is functional testing?"/>
-      <button onclick="askQA()">Ask</button>
-      <div id="askResult"></div>
-    </div>
+  <h2>Ask QA Architect</h2>
+  <input id="askInput" placeholder="What is functional testing?"/>
+  <div class="ask-actions">
+    <button onclick="askQA()" id="askBtn">Ask</button>
+    <button type="button" class="btn-alt" onclick="clearAsk()" id="clearAskBtn">Clear</button>
+  </div>
+  <div id="askResult"></div>
+</div>
 
     <div id="runs" class="hidden">
       <h2>Execution History</h2>

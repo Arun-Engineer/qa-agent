@@ -164,8 +164,14 @@ function renderMarkdown(md) {
   };
 
   const closeLists = () => {
-    if (inUl) { html += `</ul>`; inUl = false; }
-    if (inOl) { html += `</ol>`; inOl = false; }
+    if (inUl) {
+      html += `</ul>`;
+      inUl = false;
+    }
+    if (inOl) {
+      html += `</ol>`;
+      inOl = false;
+    }
   };
 
   const flushCode = () => {
@@ -178,12 +184,20 @@ function renderMarkdown(md) {
     const line = raw ?? "";
 
     if (line.trim().startsWith("```")) {
-      if (inCode) { inCode = false; flushCode(); }
-      else { closeLists(); inCode = true; }
+      if (inCode) {
+        inCode = false;
+        flushCode();
+      } else {
+        closeLists();
+        inCode = true;
+      }
       continue;
     }
 
-    if (inCode) { codeBuf.push(line); continue; }
+    if (inCode) {
+      codeBuf.push(line);
+      continue;
+    }
 
     const h = line.match(/^(#{1,4})\s+(.*)$/);
     if (h) {
@@ -197,16 +211,28 @@ function renderMarkdown(md) {
 
     const ol = line.match(/^\s*(\d+)\.\s+(.*)$/);
     if (ol) {
-      if (inUl) { html += `</ul>`; inUl = false; }
-      if (!inOl) { html += `<ol class="md-ol">`; inOl = true; }
+      if (inUl) {
+        html += `</ul>`;
+        inUl = false;
+      }
+      if (!inOl) {
+        html += `<ol class="md-ol">`;
+        inOl = true;
+      }
       html += `<li>${inline(ol[2])}</li>`;
       continue;
     }
 
     const ul = line.match(/^\s*[-*]\s+(.*)$/);
     if (ul) {
-      if (inOl) { html += `</ol>`; inOl = false; }
-      if (!inUl) { html += `<ul class="md-ul">`; inUl = true; }
+      if (inOl) {
+        html += `</ol>`;
+        inOl = false;
+      }
+      if (!inUl) {
+        html += `<ul class="md-ul">`;
+        inUl = true;
+      }
       html += `<li>${inline(ul[1])}</li>`;
       continue;
     }
@@ -238,7 +264,9 @@ function renderAskEmptyCard(mode = "idle") {
     : "Ask a QA question. Follow-ups will remember chat history.";
 
   const specInfo = currentSpecId
-    ? `<div class="muted" style="margin-top:8px;">Linked Spec: <code>${escapeHtml(currentSpecId)}</code></div>`
+    ? `<div class="muted" style="margin-top:8px;">Linked Spec: <code>${escapeHtml(
+        currentSpecId
+      )}</code></div>`
     : `<div class="muted" style="margin-top:8px;">No spec linked. (Run a spec to link one.)</div>`;
 
   return `
@@ -254,8 +282,27 @@ function renderAskEmptyCard(mode = "idle") {
           <div class="think-bar" aria-hidden="true"><span></span></div>
         </div>
 
-        ${loading ? `<div class="dots" aria-hidden="true"><span></span><span></span><span></span></div>` : ``}
+        ${
+          loading
+            ? `<div class="dots" aria-hidden="true"><span></span><span></span><span></span></div>`
+            : ``
+        }
       </div>
+    </div>
+  `;
+}
+
+/* Ask QA: render ONLY the latest assistant reply (no chat history UI) */
+function renderAssistantOnlyCard(replyMd) {
+  const content = `<div class="md">${renderMarkdown(replyMd)}</div>`;
+  return `
+    <div class="card card-answer">
+      <div class="card-head">
+        <div class="head-left">
+          <div class="kicker">ASSISTANT</div>
+        </div>
+      </div>
+      <div class="clamp-target">${content}</div>
     </div>
   `;
 }
@@ -266,9 +313,13 @@ function renderAskEmptyCard(mode = "idle") {
 function renderChatThread(messages = [], summary = "") {
   const items = (messages || []).map((m) => {
     const isUser = (m.role || "").toLowerCase() === "user";
-    const roleLabel = isUser ? "You" : (m.role || "assistant");
+    const roleLabel = isUser ? "You" : m.role || "assistant";
     const content = `<div class="md">${renderMarkdown(m.content)}</div>`;
-    const ts = m.created_at ? `<div class="muted" style="margin-top:6px;font-size:12px;">${escapeHtml(fmtTs(m.created_at))}</div>` : "";
+    const ts = m.created_at
+      ? `<div class="muted" style="margin-top:6px;font-size:12px;">${escapeHtml(
+          fmtTs(m.created_at)
+        )}</div>`
+      : "";
     return `
       <div class="card" style="margin-bottom:10px;">
         <div class="card-head">
@@ -336,7 +387,8 @@ function computeMetricsFromRuns(runs) {
   }
 
   const total = total_passed + total_failed;
-  const average_pass_rate = total > 0 ? Math.round((total_passed / total) * 100) : 0;
+  const average_pass_rate =
+    total > 0 ? Math.round((total_passed / total) * 100) : 0;
 
   return {
     total_runs,
@@ -464,8 +516,12 @@ async function runSpec() {
         <div class="card-head">
           <div class="head-left">
             <div class="kicker">Execution Result</div>
-            <div class="title">${escapeHtml(data.goal ?? "Run completed")}</div>
-            <div class="muted" style="margin-top:6px;">Spec ID: <code>${escapeHtml(spec_id)}</code></div>
+            <div class="title">${escapeHtml(
+              data.goal ?? "Run completed"
+            )}</div>
+            <div class="muted" style="margin-top:6px;">Spec ID: <code>${escapeHtml(
+              spec_id
+            )}</code></div>
           </div>
           <div class="${badgeClass(failed)}">${statusText(failed)}</div>
         </div>
@@ -485,14 +541,19 @@ async function runSpec() {
           </div>
           <div class="metric">
             <div class="metric-label">When</div>
-            <div class="metric-value">${escapeHtml(relTime(data.timestamp))}</div>
+            <div class="metric-value">${escapeHtml(
+              relTime(data.timestamp)
+            )}</div>
             <div class="metric-sub">${escapeHtml(fmtTs(data.timestamp))}</div>
           </div>
         </div>
 
         <div class="section">
           <div class="section-title">Artifacts</div>
-          ${artifactButtons(artifacts) || `<div class="muted">No artifacts generated for this run.</div>`}
+          ${
+            artifactButtons(artifacts) ||
+            `<div class="muted">No artifacts generated for this run.</div>`
+          }
         </div>
       </div>
     `;
@@ -501,7 +562,9 @@ async function runSpec() {
     await initChat();
   } catch (e) {
     console.error(e);
-    resultDiv.innerHTML = `<div class="card card-error">❌ ${escapeHtml(e.message)}</div>`;
+    resultDiv.innerHTML = `<div class="card card-error">❌ ${escapeHtml(
+      e.message
+    )}</div>`;
   }
 }
 
@@ -522,11 +585,16 @@ async function loadChatHistory() {
     await initChat();
     const data = await fetchJson("/api/chat/history");
     const resultDiv = document.getElementById("askResult");
-    resultDiv.innerHTML = renderChatThread(data.messages || [], data.summary || "");
+    resultDiv.innerHTML = renderChatThread(
+      data.messages || [],
+      data.summary || ""
+    );
   } catch (e) {
     console.error(e);
     const resultDiv = document.getElementById("askResult");
-    resultDiv.innerHTML = `<div class="card card-error">❌ ${escapeHtml(e.message)}</div>`;
+    resultDiv.innerHTML = `<div class="card card-error">❌ ${escapeHtml(
+      e.message
+    )}</div>`;
   }
 }
 
@@ -534,15 +602,17 @@ async function loadChatHistory() {
    Ask QA (chat memory)
 ----------------------------- */
 async function askQA() {
-  const question = document.getElementById("askInput").value.trim();
+  const input = document.getElementById("askInput");
+  const question = (input?.value || "").trim();
   const resultDiv = document.getElementById("askResult");
 
   if (!question) {
-    resultDiv.innerHTML = `<div class="card card-error">Ask something first.</div>`;
+    if (resultDiv)
+      resultDiv.innerHTML = `<div class="card card-error">Ask something first.</div>`;
     return;
   }
 
-  resultDiv.innerHTML = renderAskEmptyCard("loading");
+  if (resultDiv) resultDiv.innerHTML = renderAskEmptyCard("loading");
 
   try {
     await initChat();
@@ -554,17 +624,25 @@ async function askQA() {
       use_rag: true,
     };
 
-    await fetchJson("/api/chat/send", {
+    const res = await fetchJson("/api/chat/send", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
 
-    await loadChatHistory();
-    document.getElementById("askInput").value = "";
+    const reply = res?.reply ?? res?.answer ?? "";
+    if (resultDiv) resultDiv.innerHTML = renderAssistantOnlyCard(reply);
+
+    if (input) {
+      input.value = "";
+      input.focus();
+    }
   } catch (e) {
     console.error(e);
-    resultDiv.innerHTML = `<div class="card card-error">❌ ${escapeHtml(e.message)}</div>`;
+    if (resultDiv)
+      resultDiv.innerHTML = `<div class="card card-error">❌ ${escapeHtml(
+        e.message
+      )}</div>`;
   }
 }
 
@@ -572,7 +650,7 @@ async function askQA() {
    Run History
 ----------------------------- */
 async function loadRuns() {
-  document.body.classList.remove("lock-scroll");
+  // normal page scroll behaviour for history view
   setScrollLock(false);
   hideAll();
   document.getElementById("runs").classList.remove("hidden");
@@ -614,7 +692,9 @@ async function loadRuns() {
             </div>
             <div class="metric">
               <div class="metric-label">When</div>
-              <div class="metric-value">${escapeHtml(relTime(r.timestamp))}</div>
+              <div class="metric-value">${escapeHtml(
+                relTime(r.timestamp)
+              )}</div>
               <div class="metric-sub">${escapeHtml(fmtTs(r.timestamp))}</div>
             </div>
             <div class="metric">
@@ -626,7 +706,10 @@ async function loadRuns() {
           </div>
 
           <div class="section" style="margin-top:12px;">
-            ${artifactButtons(artifacts) || `<div class="muted">No artifacts for this run.</div>`}
+            ${
+              artifactButtons(artifacts) ||
+              `<div class="muted">No artifacts for this run.</div>`
+            }
           </div>
         </div>
       `;
@@ -655,7 +738,6 @@ function adminPill(text) {
 }
 
 async function showAdmin() {
-  document.body.classList.remove("lock-scroll");
   setScrollLock(false);
   hideAll();
   document.getElementById("admin").classList.remove("hidden");
@@ -671,7 +753,12 @@ async function loadAdmin() {
 
     // Current access panel
     meDiv.innerHTML =
-      adminKvRow("Tenant", `${escapeHtml(me.tenant.name)} <span class="muted">(${escapeHtml(me.tenant.slug)})</span>`) +
+      adminKvRow(
+        "Tenant",
+        `${escapeHtml(me.tenant.name)} <span class="muted">(${escapeHtml(
+          me.tenant.slug
+        )})</span>`
+      ) +
       adminKvRow("Email", escapeHtml(me.account.email || "")) +
       adminKvRow("Tenant role", adminPill(me.tenant_role)) +
       adminKvRow("Platform role", adminPill(me.platform_role));
@@ -684,7 +771,9 @@ async function loadAdmin() {
     // Platform admin panels may 403
     await loadTenants();
   } catch (e) {
-    meDiv.innerHTML = `<div class="card card-error">❌ ${escapeHtml(e.message)}</div>`;
+    meDiv.innerHTML = `<div class="card card-error">❌ ${escapeHtml(
+      e.message
+    )}</div>`;
   }
 }
 
@@ -705,30 +794,46 @@ async function loadMembers() {
         <div class="admin-item">
           <div class="admin-item-main">
             <div class="admin-item-title">${escapeHtml(m.email)}</div>
-            <div class="muted">status: ${escapeHtml(m.status)} • role: ${escapeHtml(m.role)}</div>
+            <div class="muted">status: ${escapeHtml(
+              m.status
+            )} • role: ${escapeHtml(m.role)}</div>
           </div>
 
           <div class="admin-item-actions">
             <select class="admin-select" id="role_${m.membership_id}">
               ${["viewer", "member", "admin", "owner"]
-                .map((r) => `<option value="${r}" ${r === m.role ? "selected" : ""}>${r}</option>`)
+                .map(
+                  (r) =>
+                    `<option value="${r}" ${
+                      r === m.role ? "selected" : ""
+                    }>${r}</option>`
+                )
                 .join("")}
             </select>
 
             <select class="admin-select" id="status_${m.membership_id}">
               ${["active", "disabled"]
-                .map((s) => `<option value="${s}" ${s === m.status ? "selected" : ""}>${s}</option>`)
+                .map(
+                  (s) =>
+                    `<option value="${s}" ${
+                      s === m.status ? "selected" : ""
+                    }>${s}</option>`
+                )
                 .join("")}
             </select>
 
-            <button class="btn btn-primary btn-sm" onclick="saveMember('${m.membership_id}')">Save</button>
+            <button class="btn btn-primary btn-sm" onclick="saveMember('${
+              m.membership_id
+            }')">Save</button>
           </div>
         </div>
       `
       )
       .join("");
   } catch (e) {
-    container.innerHTML = `<div class="muted">Not available: ${escapeHtml(e.message)}</div>`;
+    container.innerHTML = `<div class="muted">Not available: ${escapeHtml(
+      e.message
+    )}</div>`;
   }
 }
 
@@ -768,7 +873,9 @@ async function loadInvites() {
           <div class="admin-item-main">
             <div class="admin-item-title">${escapeHtml(i.email)}</div>
             <div class="muted">
-              role: ${escapeHtml(i.role)} • expires: ${escapeHtml(i.expires_at)} • accepted: ${escapeHtml(i.accepted_at || "-")}
+              role: ${escapeHtml(i.role)} • expires: ${escapeHtml(
+          i.expires_at
+        )} • accepted: ${escapeHtml(i.accepted_at || "-")}
             </div>
           </div>
         </div>
@@ -776,7 +883,9 @@ async function loadInvites() {
       )
       .join("");
   } catch (e) {
-    container.innerHTML = `<div class="muted">Not available: ${escapeHtml(e.message)}</div>`;
+    container.innerHTML = `<div class="muted">Not available: ${escapeHtml(
+      e.message
+    )}</div>`;
   }
 }
 
@@ -799,7 +908,9 @@ async function createInvite() {
     });
 
     out.innerHTML = res.dev_token
-      ? `Invited. Dev token: <code>${escapeHtml(res.dev_token)}</code>`
+      ? `Invited. Dev token: <code>${escapeHtml(
+          res.dev_token
+        )}</code>`
       : `Added member: <code>${escapeHtml(email)}</code>`;
 
     document.getElementById("inviteEmail").value = "";
@@ -838,7 +949,9 @@ async function loadAudit() {
       )
       .join("");
   } catch (e) {
-    container.innerHTML = `<div class="muted">Not available: ${escapeHtml(e.message)}</div>`;
+    container.innerHTML = `<div class="muted">Not available: ${escapeHtml(
+      e.message
+    )}</div>`;
   }
 }
 
@@ -859,15 +972,21 @@ async function loadTenants() {
         (t) => `
         <div class="admin-item">
           <div class="admin-item-main">
-            <div class="admin-item-title">${escapeHtml(t.slug)} <span class="muted">— ${escapeHtml(t.name)}</span></div>
-            <div class="muted">active: ${escapeHtml(String(t.is_active))} • created: ${escapeHtml(t.created_at)}</div>
+            <div class="admin-item-title">${escapeHtml(
+              t.slug
+            )} <span class="muted">— ${escapeHtml(t.name)}</span></div>
+            <div class="muted">active: ${escapeHtml(
+              String(t.is_active)
+            )} • created: ${escapeHtml(t.created_at)}</div>
           </div>
         </div>
       `
       )
       .join("");
   } catch (e) {
-    container.innerHTML = `<div class="muted">Platform admin not available: ${escapeHtml(e.message)}</div>`;
+    container.innerHTML = `<div class="muted">Platform admin not available: ${escapeHtml(
+      e.message
+    )}</div>`;
   }
 }
 
@@ -922,30 +1041,35 @@ async function grantPlatformRole() {
    Navigation helpers
 ----------------------------- */
 function setScrollLock(on) {
+  // This just toggles the body class; CSS controls who actually scrolls.
   if (on) document.body.classList.add("lock-scroll");
   else document.body.classList.remove("lock-scroll");
 }
 
 function showDashboard() {
-  document.body.classList.remove("lock-scroll");
-  setScrollLock(false);
+  setScrollLock(false); // normal right-pane scroll
   hideAll();
   document.getElementById("dashboard").classList.remove("hidden");
   loadMetrics();
 }
 
 function showExecutor() {
-  document.body.classList.remove("lock-scroll");
-  setScrollLock(false);
+  setScrollLock(false); // normal right-pane scroll
   hideAll();
   document.getElementById("executor").classList.remove("hidden");
 }
 
 function showAsk() {
-  setScrollLock(true);
+  // 🔒 Ask QA uses locked layout: only answer content scrolls (via CSS)
   hideAll();
+  setScrollLock(true);
   document.getElementById("ask").classList.remove("hidden");
-  loadChatHistory();
+
+  const resultDiv = document.getElementById("askResult");
+  if (resultDiv) resultDiv.innerHTML = renderAskEmptyCard("idle");
+
+  // Ensure backend conversation exists (memory kept server-side)
+  initChat().catch(console.error);
 }
 
 function hideAll() {
@@ -994,9 +1118,28 @@ window.showAsk = showAsk;
 window.loadRuns = loadRuns;
 window.runSpec = runSpec;
 window.askQA = askQA;
+window.clearAsk = clearAsk;
 
 window.showAdmin = showAdmin;
 window.createInvite = createInvite;
 window.saveMember = saveMember;
 window.createTenant = createTenant;
+
+async function clearAsk() {
+  const input = document.getElementById("askInput");
+  const resultDiv = document.getElementById("askResult");
+
+  if (input) {
+    input.value = "";
+    input.focus();
+  }
+  if (resultDiv) resultDiv.innerHTML = renderAskEmptyCard("idle");
+
+  try {
+    await fetchJson("/api/chat/clear", { method: "POST" });
+  } catch (e) {
+    console.error(e);
+  }
+}
+
 window.grantPlatformRole = grantPlatformRole;

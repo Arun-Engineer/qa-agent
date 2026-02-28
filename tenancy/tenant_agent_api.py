@@ -9,7 +9,7 @@ from typing import Any
 from fastapi import APIRouter, Request, Depends, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from auth.db import get_db, SessionLocal
 from tenancy.deps import require_session, require_tenant, get_session_user
 from agent.agent_runner import run_agent_from_spec, explain_mode
@@ -477,6 +477,38 @@ def chat_history(
         "messages": [{"role": m.role, "content": m.content, "created_at": m.created_at.isoformat()} for m in msgs],
     }
 
+
+@router.post("/api/chat/clear")
+def chat_clear(
+    request: Request,
+    db: Session = Depends(get_db),
+    session=Depends(require_session),
+):
+    """Clear stored chat messages for the active conversation (backend memory)."""
+    tenant_id = session.get("tenant_id") or getattr(request.state, "tenant_id", "local")
+    conv_id = request.session.get("active_conversation_id")
+    if not conv_id:
+        return {"ok": True, "conversation_id": None}
+
+    from tenancy.content_models import Conversation, ChatMessage
+
+    conv = db.get(Conversation, conv_id)
+    if not conv:
+        request.session.pop("active_conversation_id", None)
+        return {"ok": True, "conversation_id": None}
+
+    db.execute(
+        delete(ChatMessage).where(
+            ChatMessage.tenant_id == str(tenant_id),
+            ChatMessage.conversation_id == conv_id,
+        )
+    )
+
+    conv.summary = ""
+    db.add(conv)
+    db.commit()
+
+    return {"ok": True, "conversation_id": conv_id}
 
 @router.post("/api/chat/send")
 async def chat_send(
