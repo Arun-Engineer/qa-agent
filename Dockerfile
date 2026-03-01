@@ -1,16 +1,9 @@
-FROM python:3.11-slim
-
+FROM python:3.12-slim
 WORKDIR /app
-
 COPY requirements.txt .
-RUN pip install --upgrade pip && pip install -r requirements.txt
-
-COPY . .
-
-RUN playwright install --with-deps
-
-ENV PYTHONUNBUFFERED=1
-
-EXPOSE 8080
-
-CMD ["uvicorn", "main_api:app", "--host", "0.0.0.0", "--port", "8080"]
+RUN pip install --no-cache-dir -r requirements.txt
+COPY src/ ./src/
+COPY config/ ./config/
+COPY .env.example ./.env
+EXPOSE 8000
+CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000"]

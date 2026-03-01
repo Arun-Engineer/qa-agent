@@ -1,72 +1,22 @@
-﻿# ---- Secrets / env ----
-.env
-.env.*
-*.env
-*.key
-*.pem
-*.p12
-*.pfx
-secrets.*
-config/secrets.*
-**/secrets/**
-
-# ---- Python ----
 __pycache__/
-*.py[cod]
-*.pyd
-*.so
+*.pyc
+*.pyo
+.idea/
+.vscode/
+.env
 *.egg-info/
 dist/
 build/
-.eggs/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
-.coverage
 htmlcov/
-coverage.xml
-*.log
-
-# ---- Virtualenvs ----
+artifacts/
+node_modules/
+logs/*.log
+reports/*.json
+*.db
 .venv/
 venv/
 env/
 ENV/
-.conda/
-
-# ---- IDE ----
-.idea/
-.vscode/
-*.iml
-
-# ---- OS ----
-.DS_Store
-Thumbs.db
-
-# ---- Node (if UI exists) ----
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-dist/
-build/
-
-# ---- Artifacts / reports (adjust to your repo) ----
-artifacts/
-reports/
-logs/
-output/
-screenshots/
-traces/
-playwright-report/
-test-results/
-*.zip
-*.tar
-*.gz
-
-# ---- Large binaries ----
-*.exe
-*.dll
-*.bin
-*.iso
