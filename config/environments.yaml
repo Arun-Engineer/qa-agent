@@ -1,0 +1,27 @@
+environments:
+  sit:
+    name: System Integration Testing
+    base_url: https://sit.example.com
+    api_url: https://api-sit.example.com
+    access_mode: full
+    data_strategy: generate_freely
+    approval_required: false
+    session_timeout_minutes: 480
+
+  uat:
+    name: User Acceptance Testing
+    base_url: https://uat.example.com
+    api_url: https://api-uat.example.com
+    access_mode: controlled
+    data_strategy: use_seeded
+    approval_required: false
+    session_timeout_minutes: 240
+
+  prod:
+    name: Production
+    base_url: https://www.example.com
+    api_url: https://api.example.com
+    access_mode: read_only
+    data_strategy: observe_only
+    approval_required: true
+    session_timeout_minutes: 30
