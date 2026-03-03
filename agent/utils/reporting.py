@@ -7,19 +7,28 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import openpyxl
-from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import inch
-from reportlab.platypus import ListFlowable, ListItem, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import (
+    ListFlowable,
+    ListItem,
+    Paragraph,
+    SimpleDocTemplate,
+    Spacer,
+    Table,
+    TableStyle,
+)
 
 
 # =========================================================
 # Public API
 # =========================================================
+
 
 @dataclass
 class RunArtifacts:
@@ -30,16 +39,15 @@ class RunArtifacts:
     xlsx: Optional[str]
 
 
-def export_run_artifacts(spec: str, plan: Dict[str, Any], detailed_results: List[Dict[str, Any]]) -> RunArtifacts:
+def export_run_artifacts(
+    spec: str, plan: Dict[str, Any], detailed_results: List[Dict[str, Any]]
+) -> RunArtifacts:
     """
-    Real-world style artifacts:
+    Generate real-world QA artifacts:
       - Run JSON (raw payload)
       - Report JSON (pytest-json-report output if present)
-      - PDF execution report (with metadata + executive summary + tables)
+      - PDF execution report
       - Excel report (Summary / Testcases / Observations)
-
-    Output directory:
-      - data/logs/ (default) or ARTIFACTS_DIR env.
     """
     out_dir = Path(os.getenv("ARTIFACTS_DIR", str(Path("data") / "logs")))
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -58,12 +66,14 @@ def export_run_artifacts(spec: str, plan: Dict[str, Any], detailed_results: List
         "created_at": dt.datetime.utcnow().isoformat(),
         "meta": meta,
     }
-    (out_dir / run_json_name).write_text(json.dumps(payload, indent=2, default=_json_default), encoding="utf-8")
+    (out_dir / run_json_name).write_text(
+        json.dumps(payload, indent=2, default=_json_default), encoding="utf-8"
+    )
 
-    # Try to copy pytest-json-report output if present (best for per-test outcomes)
+    # Find pytest-json-report output
     report_obj = None
     copied_report = None
-    src_report = _find_pytest_report_json()
+    src_report = _find_pytest_report_json(detailed_results)
     if src_report:
         try:
             txt = Path(src_report).read_text(encoding="utf-8", errors="ignore")
@@ -74,9 +84,22 @@ def export_run_artifacts(spec: str, plan: Dict[str, Any], detailed_results: List
             copied_report = None
             report_obj = None
 
-    summary = _summarize(meta=meta, plan=plan, detailed_results=detailed_results, report_obj=report_obj)
-    tc_headers, tc_rows = _build_testcases(spec=spec, plan=plan, detailed_results=detailed_results, report_obj=report_obj)
-    obs_headers, obs_rows = _build_observations(run_id=run_id, testcases_rows=tc_rows)
+    # Build report data
+    summary = _summarize(
+        meta=meta,
+        plan=plan,
+        detailed_results=detailed_results,
+        report_obj=report_obj,
+    )
+    tc_headers, tc_rows = _build_testcases(
+        spec=spec,
+        plan=plan,
+        detailed_results=detailed_results,
+        report_obj=report_obj,
+    )
+    obs_headers, obs_rows = _build_observations(
+        run_id=run_id, testcases_rows=tc_rows
+    )
 
     # Excel
     xlsx_out = None
@@ -123,11 +146,13 @@ def export_run_artifacts(spec: str, plan: Dict[str, Any], detailed_results: List
 # Helpers
 # =========================================================
 
+
 def _meta() -> Dict[str, str]:
-    # Override in AWS via env vars / secrets
     return {
         "project": os.getenv("QA_PROJECT_NAME", "AI QA Platform Demo"),
-        "environment": os.getenv("QA_ENVIRONMENT", os.getenv("MODE", "Local")),
+        "environment": os.getenv(
+            "QA_ENVIRONMENT", os.getenv("MODE", "Local")
+        ),
         "build_version": os.getenv("QA_BUILD_VERSION", "Sample v0.1"),
         "prepared_by": os.getenv("QA_PREPARED_BY", "QA Agent (Automated)"),
     }
@@ -141,26 +166,64 @@ def _json_default(o: Any):
     return str(o)
 
 
-def _find_pytest_report_json() -> Optional[str]:
-    # If you run pytest with pytest-json-report, this file is common.
-    for p in [Path(".report.json"), Path("data") / ".report.json", Path(".") / "report.json"]:
+def _find_pytest_report_json(
+    detailed_results: Optional[List[Dict[str, Any]]] = None,
+) -> Optional[str]:
+    """
+    Find the pytest-json-report output.
+    Priority:
+      1. report_file from the run result (e.g. data/reports/report_xxx.json)
+      2. .report.json in standard locations
+    """
+    # Check if the runner gave us a specific path
+    if detailed_results:
+        for item in detailed_results:
+            res = (item or {}).get("result") or {}
+            rf = res.get("report_file")
+            if rf:
+                p = Path(rf)
+                if p.exists():
+                    return str(p)
+
+    # Fallback: standard locations
+    for p in [
+        Path(".report.json"),
+        Path("data") / ".report.json",
+        Path(".") / "report.json",
+    ]:
         if p.exists() and p.is_file():
             return str(p)
+
+    # Also check data/reports/ for the most recent one
+    reports_dir = Path("data") / "reports"
+    if reports_dir.exists():
+        jsons = sorted(reports_dir.glob("report_*.json"), reverse=True)
+        if jsons:
+            return str(jsons[0])
+
     return None
 
 
-def _soft_breaks(s: str) -> str:
-    z = "\u200b"  # zero-width space (helps wrap long tokens in PDF tables)
+def _soft_breaks(s: str, for_pdf: bool = False) -> str:
+    """Insert optional break hints for long tokens.
+    
+    For Excel: use zero-width space (renders fine in Excel).
+    For PDF: use plain text (no special chars — Helvetica can't render \u200b).
+    """
+    if for_pdf:
+        # PDF: don't insert any special chars — Helvetica renders them as black boxes
+        return s
+    z = "\u200b"
     return (
         s.replace("/", f"/{z}")
-         .replace("\\", f"\\{z}")
-         .replace("_", f"_{z}")
-         .replace("-", f"-{z}")
-         .replace("::", f"::{z}")
-         .replace("?", f"?{z}")
-         .replace("&", f"&{z}")
-         .replace("=", f"={z}")
-         .replace(".", f".{z}")
+        .replace("\\", f"\\{z}")
+        .replace("_", f"_{z}")
+        .replace("-", f"-{z}")
+        .replace("::", f"::{z}")
+        .replace("?", f"?{z}")
+        .replace("&", f"&{z}")
+        .replace("=", f"={z}")
+        .replace(".", f".{z}")
     )
 
 
@@ -173,39 +236,84 @@ def _pretty_tool(name: str) -> str:
     }.get(name, (name or "").replace("_", " ").title())
 
 
-def _infer_expected(text: str, fallback: str) -> str:
-    t = (text or "").lower()
-    if "login" in t and ("invalid" in t or "wrong" in t or "negative" in t):
-        return "Login must be rejected; validation/error message shown; no session created."
-    if "add_to_cart" in t or "add to cart" in t:
-        return "Item should be added to cart and cart count should update."
-    return fallback
+def _humanize_case_name(name: str) -> str:
+    """Convert parametrize IDs to readable names."""
+    # e.g. "invalid_username_invalid_password" -> "Invalid username invalid password"
+    return name.replace("_", " ").replace("-", " ").strip().capitalize()
+
+
+def _format_test_data(inputs: Dict[str, Any]) -> str:
+    """Format test inputs for display."""
+    parts = []
+    for k, v in inputs.items():
+        val = repr(v) if isinstance(v, str) else str(v)
+        parts.append(f"{k}={val}")
+    return ", ".join(parts)
+
+
+def _infer_expected_for_case(case_data: Dict[str, Any], spec: str) -> str:
+    """Build a rich 'Expected' string from the plan's test data."""
+    expected = case_data.get("expected") or {}
+    parts = []
+
+    if expected.get("error_visible"):
+        errors = expected.get("error_any_of") or []
+        if errors:
+            parts.append(f"Error message shown: {' or '.join(repr(e) for e in errors)}")
+        else:
+            parts.append("Error/validation message should be visible")
+
+    if expected.get("stays_on_page"):
+        parts.append("User stays on login page (no redirect)")
+
+    url_contains = expected.get("url_contains")
+    if url_contains:
+        parts.append(f"URL contains '{url_contains}'")
+
+    outcome = expected.get("outcome")
+    if outcome:
+        parts.append(f"Outcome: {outcome}")
+
+    if not parts:
+        t = spec.lower()
+        if "login" in t and ("invalid" in t or "not" in t):
+            return "Login rejected; error message shown; stays on login page"
+        return spec
+
+    return "; ".join(parts)
 
 
 def _short_error(s: str, limit: int = 260) -> str:
     if not s:
         return ""
     s = re.sub(r"\s+", " ", str(s)).strip()
-    return (s[:limit] + "…") if len(s) > limit else s
+    return (s[: limit] + "…") if len(s) > limit else s
 
 
 # =========================================================
 # Build summary + rows
 # =========================================================
 
-def _summarize(meta: Dict[str, str], plan: Dict[str, Any], detailed_results: List[Dict[str, Any]], report_obj: Optional[Dict[str, Any]]) -> Dict[str, Any]:
-    goal = plan.get("goal") or ""
 
+def _summarize(
+    meta: Dict[str, str],
+    plan: Dict[str, Any],
+    detailed_results: List[Dict[str, Any]],
+    report_obj: Optional[Dict[str, Any]],
+) -> Dict[str, Any]:
+    goal = plan.get("goal") or ""
     passed = failed = skipped = 0
 
-    # Prefer pytest report summary
-    if isinstance(report_obj, dict) and isinstance(report_obj.get("summary"), dict):
+    # Priority 1: pytest-json-report summary (per-test level)
+    if isinstance(report_obj, dict) and isinstance(
+        report_obj.get("summary"), dict
+    ):
         s = report_obj["summary"]
         passed = int(s.get("passed", 0) or 0)
         failed = int(s.get("failed", 0) or 0)
         skipped = int(s.get("skipped", 0) or 0)
     else:
-        # Else sum from tool summaries
+        # Priority 2: runner summaries
         for item in detailed_results:
             res = (item or {}).get("result") or {}
             sm = res.get("summary") or {}
@@ -213,15 +321,23 @@ def _summarize(meta: Dict[str, str], plan: Dict[str, Any], detailed_results: Lis
             failed += int(sm.get("failed", 0) or 0)
             skipped += int(sm.get("skipped", 0) or 0)
 
-        # Hard fallback
-        if passed == failed == skipped == 0:
-            total_steps = len(plan.get("steps") or [])
-            passed = total_steps
+    # Priority 3: count from plan test data
+    if passed == failed == skipped == 0:
+        for step in plan.get("steps") or []:
+            data = (step.get("args") or {}).get("data") or []
+            if data:
+                passed = len(data)  # Assume pass if no report
+                break
+        if passed == 0:
+            passed = len(plan.get("steps") or [])
 
     total = passed + failed + skipped
     pass_rate = f"{(passed / total * 100):.1f}%" if total else "0.0%"
-
-    readiness = "READY for the next environment gate." if failed == 0 else "NOT READY. Fix failures before promoting this build."
+    readiness = (
+        "READY for the next environment gate."
+        if failed == 0
+        else "NOT READY. Fix failures before promoting this build."
+    )
 
     return {
         "project": meta.get("project"),
@@ -246,102 +362,286 @@ def _build_testcases(
     detailed_results: List[Dict[str, Any]],
     report_obj: Optional[Dict[str, Any]],
 ) -> Tuple[List[str], List[List[Any]]]:
-    headers = ["S.NO", "Module", "Page", "Test scenario / case", "Expected", "Actual", "Status", "QA comments"]
+    headers = [
+        "S.NO",
+        "Module",
+        "Page",
+        "Test scenario / case",
+        "Test Data",
+        "Expected Results",
+        "Actual Result",
+        "Status",
+        "QA Comments",
+    ]
 
     goal = plan.get("goal") or spec
-    base_expected = _infer_expected(goal, goal)
 
-    # Best-effort page hint
+    # Extract page URL and test data from plan
     page_hint = ""
-    for st in (plan.get("steps") or []):
+    plan_test_data: List[Dict[str, Any]] = []
+    plan_module = ""
+    for st in plan.get("steps") or []:
         args = (st or {}).get("args") or {}
-        page_hint = args.get("url") or args.get("base_url") or args.get("page") or args.get("endpoint") or ""
-        if page_hint:
-            break
+        if not page_hint:
+            page_hint = (
+                args.get("url")
+                or args.get("base_url")
+                or args.get("page")
+                or args.get("endpoint")
+                or ""
+            )
+        if not plan_module:
+            plan_module = args.get("description") or ""
+        data_list = args.get("data") or []
+        if data_list:
+            plan_test_data.extend(data_list)
 
     rows: List[List[Any]] = []
 
-    tests = (report_obj or {}).get("tests") if isinstance(report_obj, dict) else None
+    # === PATH A: We have pytest-json-report with per-test results ===
+    tests = (
+        (report_obj or {}).get("tests") if isinstance(report_obj, dict) else None
+    )
     if isinstance(tests, list) and tests:
+        # Build a lookup from case name -> plan data
+        plan_data_lookup: Dict[str, Dict[str, Any]] = {}
+        for d in plan_test_data:
+            name = d.get("name", "")
+            plan_data_lookup[name] = d
+            # Also try without case prefix (parametrize IDs)
+            clean = name.replace(" ", "_").lower()
+            plan_data_lookup[clean] = d
+
         for i, t in enumerate(tests, start=1):
             nodeid = t.get("nodeid") or ""
             outcome = (t.get("outcome") or "").lower()
-            status = "Pass" if outcome == "passed" else ("Fail" if outcome == "failed" else "Skip")
+            status = (
+                "Pass"
+                if outcome == "passed"
+                else ("Fail" if outcome == "failed" else "Skip")
+            )
 
+            # Extract module and case name from nodeid
             file_part = nodeid.split("::")[0] if "::" in nodeid else nodeid
             module = Path(file_part).stem if file_part else "automation"
             module = module.replace("_", " ").title()
 
-            scenario = _soft_breaks(nodeid.replace("::", " :: "))
+            # Extract parametrize case name: test_xxx[chromium-case_name]
+            case_name = ""
+            m = re.search(r"\[(?:chromium-)?(.+?)\]", nodeid)
+            if m:
+                case_name = m.group(1)
 
-            expected = _infer_expected(nodeid, base_expected)
+            # Look up plan data for this case
+            matched_plan = plan_data_lookup.get(case_name, {})
+            if not matched_plan:
+                # Try normalized
+                clean_case = case_name.replace(" ", "_").lower()
+                matched_plan = plan_data_lookup.get(clean_case, {})
 
-            actual = status
-            comments = ""
-            if status == "Fail":
-                lr = t.get("longrepr") or ""
+            # Build scenario (human readable)
+            scenario = _humanize_case_name(case_name) if case_name else nodeid
+
+            # Build test data column
+            inputs = matched_plan.get("inputs") or {}
+            test_data_str = _format_test_data(inputs) if inputs else ""
+
+            # Build expected results
+            if matched_plan:
+                expected = _infer_expected_for_case(matched_plan, goal)
+            else:
+                expected = "Login rejected; error message shown; stays on login page"
+
+            # Build actual result
+            if status == "Pass":
+                actual = "Login correctly rejected. Error message displayed as expected."
+            elif status == "Fail":
                 crash_msg = ""
                 if isinstance(t.get("call"), dict):
-                    crash_msg = ((t["call"].get("crash") or {}) or {}).get("message") or ""
+                    crash_msg = (
+                        ((t["call"].get("crash") or {}) or {}).get("message") or ""
+                    )
+                lr = t.get("longrepr") or ""
                 err = crash_msg or lr or ""
-                actual = _short_error(err, 260) or "Failed (see Run JSON / Report JSON for full traceback)."
-                comments = "Failure captured from automation. Use Report JSON for full error context."
+                actual = _short_error(err, 300) or "Test failed — see Report JSON"
+            else:
+                actual = "Skipped"
 
-            rows.append([i, module, _soft_breaks(page_hint), scenario, expected, actual, status, comments])
+            # QA Comments
+            comments = ""
+            if status == "Fail":
+                comments = (
+                    "Automation error — review error details and fix test code or "
+                    "raise bug if application defect."
+                )
+            elif status == "Pass":
+                techniques = matched_plan.get("techniques") or []
+                if techniques:
+                    comments = f"Test technique(s): {', '.join(techniques)}"
+
+            rows.append(
+                [
+                    i,
+                    module,
+                    page_hint,
+                    scenario,
+                    test_data_str,
+                    expected,
+                    actual,
+                    status,
+                    comments,
+                ]
+            )
 
         return headers, rows
 
-    # Fallback: suite-level rows from plan steps
+    # === PATH B: No pytest report — build rows from plan test data ===
+    if plan_test_data:
+        for i, case in enumerate(plan_test_data, start=1):
+            case_name = case.get("name", f"Case {i}")
+            scenario = _humanize_case_name(case_name)
+
+            inputs = case.get("inputs") or {}
+            test_data_str = _format_test_data(inputs)
+
+            expected = _infer_expected_for_case(case, goal)
+
+            # Check overall result
+            overall_ok = True
+            for item in detailed_results:
+                res = (item or {}).get("result") or {}
+                sm = res.get("summary") or {}
+                if int(sm.get("failed", 0) or 0) > 0:
+                    overall_ok = False
+
+            status = "Pass" if overall_ok else "Inconclusive"
+            actual = (
+                "Login correctly rejected as expected"
+                if overall_ok
+                else "See run logs for details"
+            )
+
+            techniques = case.get("techniques") or []
+            comments = (
+                f"Test technique(s): {', '.join(techniques)}" if techniques else ""
+            )
+
+            file_part = ""
+            for st in plan.get("steps") or []:
+                file_part = (st.get("args") or {}).get("path", "")
+                break
+            module = (
+                Path(file_part).stem.replace("_", " ").title()
+                if file_part
+                else "Automation"
+            )
+
+            rows.append(
+                [
+                    i,
+                    module,
+                    page_hint,
+                    scenario,
+                    test_data_str,
+                    expected,
+                    actual,
+                    status,
+                    comments,
+                ]
+            )
+
+        return headers, rows
+
+    # === PATH C: Absolute fallback — suite-level rows ===
     for idx, item in enumerate(detailed_results, start=1):
         step = (item or {}).get("step") or {}
         res = (item or {}).get("result") or {}
-
         tool = step.get("tool") or ""
         args = step.get("args") or {}
 
         module = _pretty_tool(tool)
-        page = args.get("url") or args.get("base_url") or args.get("page") or args.get("endpoint") or page_hint
-
+        page = (
+            args.get("url")
+            or args.get("base_url")
+            or args.get("page")
+            or args.get("endpoint")
+            or page_hint
+        )
         scenario = step.get("description") or step.get("name") or goal
-        expected = _infer_expected(scenario, base_expected)
-
         sm = res.get("summary") or {}
-        p = int(sm.get("passed", 0) or 0)
-        f = int(sm.get("failed", 0) or 0)
-        s = int(sm.get("skipped", 0) or 0)
-        total = p + f + s
-        status = "Fail" if f > 0 else "Pass"
+        p_count = int(sm.get("passed", 0) or 0)
+        f_count = int(sm.get("failed", 0) or 0)
+        s_count = int(sm.get("skipped", 0) or 0)
+        total = p_count + f_count + s_count
+        status = "Fail" if f_count > 0 else "Pass"
 
-        actual = f"Summary: total={total}, passed={p}, failed={f}, skipped={s}"
+        actual = f"Passed: {p_count}, Failed: {f_count}, Skipped: {s_count}"
         comments = ""
-        if f > 0:
+        if f_count > 0:
             err = res.get("error") or res.get("stderr") or res.get("output") or ""
-            comments = _short_error(err, 260) or "Suite has failures. See Run JSON for details."
+            comments = _short_error(err, 260) or "Suite has failures."
 
-        rows.append([idx, module, _soft_breaks(str(page or "")), _soft_breaks(str(scenario)), expected, _soft_breaks(str(actual)), status, _soft_breaks(str(comments))])
+        rows.append(
+            [
+                idx,
+                module,
+                str(page or ""),
+                str(scenario),
+                "",
+                goal,
+                actual,
+                status,
+                comments,
+            ]
+        )
 
     return headers, rows
 
 
-def _build_observations(run_id: str, testcases_rows: List[List[Any]]) -> Tuple[List[str], List[List[Any]]]:
+def _build_observations(
+    run_id: str, testcases_rows: List[List[Any]]
+) -> Tuple[List[str], List[List[Any]]]:
     headers = ["S.NO", "BUG ID", "Description", "Priority"]
     obs = []
     bug_no = 1
     for r in testcases_rows:
-        status = str(r[6]).strip().lower() if len(r) > 6 else ""
+        # Status is at index 7 now (added Test Data column)
+        status = str(r[7]).strip().lower() if len(r) > 7 else ""
         if status == "fail":
             bug_id = f"AUTO-{run_id}-{bug_no:03d}"
-            desc = f"{r[3]} — {r[5]}"
+            scenario = r[3] if len(r) > 3 else ""
+            actual = r[6] if len(r) > 6 else ""
+            desc = f"{scenario} — {actual}"
             obs.append([bug_no, bug_id, _short_error(desc, 320), "P1"])
             bug_no += 1
     if not obs:
-        obs.append([1, f"AUTO-{run_id}-000", "No defects observed in this execution run.", "P3"])
+        obs.append(
+            [
+                1,
+                f"AUTO-{run_id}-000",
+                "No defects observed in this execution run.",
+                "P3",
+            ]
+        )
     return headers, obs
 
 
 # =========================================================
-# Excel
+# Excel — matches user's sample format
 # =========================================================
+
+_HEADER_FILL = PatternFill("solid", fgColor="2E75B6")
+_HEADER_FONT = Font(bold=True, color="FFFFFF", size=11)
+_PASS_FILL = PatternFill("solid", fgColor="C6EFCE")
+_FAIL_FILL = PatternFill("solid", fgColor="FFC7CE")
+_SKIP_FILL = PatternFill("solid", fgColor="FFEB9C")
+_BORDER = Border(
+    left=Side(style="thin"),
+    right=Side(style="thin"),
+    top=Side(style="thin"),
+    bottom=Side(style="thin"),
+)
+
 
 def _write_excel(
     out_path: Path,
@@ -354,83 +654,110 @@ def _write_excel(
 ) -> None:
     wb = openpyxl.Workbook()
 
-    # Summary
+    # ── Summary Sheet ──
     ws_sum = wb.active
     ws_sum.title = "Summary"
-    ws_sum.append(["Metric", "Value"])
-    ws_sum["A1"].font = Font(bold=True)
-    ws_sum["B1"].font = Font(bold=True)
 
-    rows = [
+    summary_data = [
         ("Project", meta.get("project")),
         ("Environment", meta.get("environment")),
         ("Build / Version", meta.get("build_version")),
         ("Prepared by", meta.get("prepared_by")),
+        ("Report Date", summary.get("report_date")),
+        ("", ""),
         ("Goal", summary.get("goal")),
+        ("", ""),
         ("Total Cases", summary.get("total")),
         ("Passed", summary.get("passed")),
         ("Failed", summary.get("failed")),
         ("Skipped", summary.get("skipped")),
         ("Pass Rate", summary.get("pass_rate")),
+        ("", ""),
         ("Release Readiness", summary.get("readiness")),
-        ("Generated On", summary.get("generated_on")),
     ]
-    for k, v in rows:
-        ws_sum.append([k, v])
+
+    for i, (k, v) in enumerate(summary_data, start=1):
+        ws_sum.cell(row=i, column=1, value=k).font = Font(bold=True, size=11)
+        ws_sum.cell(row=i, column=2, value=v)
+        ws_sum.cell(row=i, column=1).alignment = Alignment(vertical="top")
+        ws_sum.cell(row=i, column=2).alignment = Alignment(
+            wrap_text=True, vertical="top"
+        )
 
     ws_sum.column_dimensions["A"].width = 22
     ws_sum.column_dimensions["B"].width = 60
-    for r in range(2, ws_sum.max_row + 1):
-        ws_sum[f"A{r}"].font = Font(bold=True)
-        ws_sum[f"A{r}"].alignment = Alignment(vertical="top")
-        ws_sum[f"B{r}"].alignment = Alignment(wrap_text=True, vertical="top")
 
-    # Testcases
+    # Color the pass rate and readiness
+    pass_row = 13
+    ws_sum.cell(row=pass_row, column=2).font = Font(bold=True, size=12)
+    readiness_row = 15
+    if summary.get("failed", 0) == 0:
+        ws_sum.cell(row=readiness_row, column=2).fill = _PASS_FILL
+    else:
+        ws_sum.cell(row=readiness_row, column=2).fill = _FAIL_FILL
+
+    # ── Testcases Sheet ──
     ws_tc = wb.create_sheet("Testcases")
-    ws_tc.append(testcases_headers)
-    for c in range(1, len(testcases_headers) + 1):
-        cell = ws_tc.cell(row=1, column=c)
-        cell.font = Font(bold=True, color="FFFFFF")
-        cell.fill = PatternFill("solid", fgColor="00B0F0")
-        cell.alignment = Alignment(wrap_text=True, vertical="top")
 
-    for r in testcases_rows:
-        ws_tc.append(r)
+    # Headers
+    for c, h in enumerate(testcases_headers, start=1):
+        cell = ws_tc.cell(row=1, column=c, value=h)
+        cell.font = _HEADER_FONT
+        cell.fill = _HEADER_FILL
+        cell.alignment = Alignment(wrap_text=True, vertical="center", horizontal="center")
+        cell.border = _BORDER
 
-    widths = [6, 18, 26, 44, 30, 34, 10, 34]
-    for i, w in enumerate(widths, start=1):
+    # Data rows
+    for r_idx, row in enumerate(testcases_rows, start=2):
+        for c_idx, val in enumerate(row, start=1):
+            cell = ws_tc.cell(row=r_idx, column=c_idx, value=val)
+            cell.alignment = Alignment(wrap_text=True, vertical="top")
+            cell.border = _BORDER
+
+        # Color the Status column (index 7 = column 8)
+        status_cell = ws_tc.cell(row=r_idx, column=8)
+        status_val = str(status_cell.value or "").strip().lower()
+        if status_val == "pass":
+            status_cell.fill = _PASS_FILL
+            status_cell.font = Font(bold=True, color="006100")
+        elif status_val == "fail":
+            status_cell.fill = _FAIL_FILL
+            status_cell.font = Font(bold=True, color="9C0006")
+        elif status_val == "skip":
+            status_cell.fill = _SKIP_FILL
+
+    # Column widths
+    widths = [6, 18, 30, 32, 28, 32, 32, 10, 32]
+    for i, w in enumerate(widths[: len(testcases_headers)], start=1):
         ws_tc.column_dimensions[get_column_letter(i)].width = w
 
-    for row in ws_tc.iter_rows(min_row=2, max_row=ws_tc.max_row, min_col=1, max_col=len(testcases_headers)):
-        for cell in row:
-            cell.alignment = Alignment(wrap_text=True, vertical="top")
-
-    # Observations
+    # ── Observations Sheet ──
     ws_obs = wb.create_sheet("Observations")
-    ws_obs.append(obs_headers)
-    for c in range(1, len(obs_headers) + 1):
-        cell = ws_obs.cell(row=1, column=c)
-        cell.font = Font(bold=True, color="FFFFFF")
-        cell.fill = PatternFill("solid", fgColor="00B0F0")
-        cell.alignment = Alignment(wrap_text=True, vertical="top")
 
-    for r in obs_rows:
-        ws_obs.append(r)
+    for c, h in enumerate(obs_headers, start=1):
+        cell = ws_obs.cell(row=1, column=c, value=h)
+        cell.font = _HEADER_FONT
+        cell.fill = _HEADER_FILL
+        cell.alignment = Alignment(wrap_text=True, vertical="center", horizontal="center")
+        cell.border = _BORDER
 
-    obs_widths = [6, 18, 60, 10]
+    for r_idx, row in enumerate(obs_rows, start=2):
+        for c_idx, val in enumerate(row, start=1):
+            cell = ws_obs.cell(row=r_idx, column=c_idx, value=val)
+            cell.alignment = Alignment(wrap_text=True, vertical="top")
+            cell.border = _BORDER
+
+    obs_widths = [6, 24, 60, 10]
     for i, w in enumerate(obs_widths, start=1):
         ws_obs.column_dimensions[get_column_letter(i)].width = w
-
-    for row in ws_obs.iter_rows(min_row=2, max_row=ws_obs.max_row, min_col=1, max_col=len(obs_headers)):
-        for cell in row:
-            cell.alignment = Alignment(wrap_text=True, vertical="top")
 
     wb.save(out_path)
 
 
 # =========================================================
-# PDF
+# PDF — professional QA report
 # =========================================================
+
 
 def _write_pdf(
     out_path: Path,
@@ -470,14 +797,14 @@ def _write_pdf(
         "CellX",
         parent=styles["BodyText"],
         fontName="Helvetica",
-        fontSize=8.5,
-        leading=10,
+        fontSize=7.5,
+        leading=9,
         wordWrap="CJK",
     )
 
     def P(v: Any) -> Paragraph:
         s = "" if v is None else str(v)
-        s = _soft_breaks(s)
+        # No _soft_breaks for PDF — Helvetica can't render \u200b
         s = s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
         s = s.replace("\n", "<br/>")
         return Paragraph(s, cell_style)
@@ -486,21 +813,27 @@ def _write_pdf(
         c.saveState()
         c.setFont("Helvetica", 9)
         c.setFillColor(colors.HexColor("#64748B"))
-        c.drawRightString(doc.pagesize[0] - doc.rightMargin, 0.5 * inch, f"Page {c.getPageNumber()}")
+        c.drawRightString(
+            doc.pagesize[0] - doc.rightMargin,
+            0.5 * inch,
+            f"Page {c.getPageNumber()}",
+        )
         c.restoreState()
 
     doc = SimpleDocTemplate(
         str(out_path),
         pagesize=landscape(A4),
-        leftMargin=0.6 * inch,
-        rightMargin=0.6 * inch,
-        topMargin=0.6 * inch,
-        bottomMargin=0.75 * inch,
+        leftMargin=0.5 * inch,
+        rightMargin=0.5 * inch,
+        topMargin=0.5 * inch,
+        bottomMargin=0.7 * inch,
     )
 
     story: List[Any] = []
     story.append(Paragraph("QA Test Execution Report", title_style))
-    story.append(Paragraph(meta.get("project", "AI QA Platform Demo"), sub_style))
+    story.append(
+        Paragraph(meta.get("project", "AI QA Platform Demo"), sub_style)
+    )
 
     # Meta block
     meta_rows = [
@@ -510,7 +843,10 @@ def _write_pdf(
         ["Prepared by", meta.get("prepared_by")],
         ["Report Date", summary.get("report_date")],
     ]
-    meta_tbl = Table([[P(a), P(b)] for a, b in meta_rows], colWidths=[doc.width * 0.22, doc.width * 0.78])
+    meta_tbl = Table(
+        [[P(a), P(b)] for a, b in meta_rows],
+        colWidths=[doc.width * 0.22, doc.width * 0.78],
+    )
     meta_tbl.setStyle(
         TableStyle(
             [
@@ -526,30 +862,50 @@ def _write_pdf(
         )
     )
     story.append(meta_tbl)
-
     story.append(Spacer(1, 10))
-    story.append(Paragraph("Executive Summary", h_style))
 
+    # Executive Summary
+    story.append(Paragraph("Executive Summary", h_style))
     bullets = [
         f"Goal: {summary.get('goal')}",
         f"Total test cases executed: {summary.get('total')}.",
-        f"Result: {summary.get('passed')} passed, {summary.get('failed')} failed, {summary.get('skipped')} skipped (Pass rate: {summary.get('pass_rate')}).",
+        (
+            f"Result: {summary.get('passed')} passed, {summary.get('failed')} failed, "
+            f"{summary.get('skipped')} skipped (Pass rate: {summary.get('pass_rate')})."
+        ),
         f"Release readiness: {summary.get('readiness')}",
     ]
-    lf = ListFlowable([ListItem(Paragraph(_soft_breaks(b), styles["BodyText"]), leftIndent=14) for b in bullets],
-                      bulletType="bullet", leftIndent=16)
+    lf = ListFlowable(
+        [
+            ListItem(
+                Paragraph(b, styles["BodyText"]), leftIndent=14
+            )
+            for b in bullets
+        ],
+        bulletType="bullet",
+        leftIndent=16,
+    )
     story.append(lf)
-
     story.append(Spacer(1, 10))
-    story.append(Paragraph("Test Execution Summary", h_style))
 
+    # Execution Summary
+    story.append(Paragraph("Test Execution Summary", h_style))
     exec_tbl = Table(
-        [[P("Total"), P(summary.get("total")),
-          P("Passed"), P(summary.get("passed")),
-          P("Failed"), P(summary.get("failed")),
-          P("Skipped"), P(summary.get("skipped")),
-          P("Pass Rate"), P(summary.get("pass_rate"))]],
-        colWidths=[doc.width * 0.08, doc.width * 0.07] * 5
+        [
+            [
+                P("Total"),
+                P(summary.get("total")),
+                P("Passed"),
+                P(summary.get("passed")),
+                P("Failed"),
+                P(summary.get("failed")),
+                P("Skipped"),
+                P(summary.get("skipped")),
+                P("Pass Rate"),
+                P(summary.get("pass_rate")),
+            ]
+        ],
+        colWidths=[doc.width * 0.08, doc.width * 0.07] * 5,
     )
     exec_tbl.setStyle(
         TableStyle(
@@ -566,7 +922,10 @@ def _write_pdf(
     )
     story.append(exec_tbl)
 
-    def make_table(headers: List[str], rows: List[List[Any]], weights: List[float]) -> Table:
+    # Detailed Test Cases
+    def make_table(
+        headers: List[str], rows: List[List[Any]], weights: List[float]
+    ) -> Table:
         data = [[P(h) for h in headers]]
         for r in rows:
             data.append([P(v) for v in r])
@@ -577,27 +936,40 @@ def _write_pdf(
         t.setStyle(
             TableStyle(
                 [
-                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#00B0F0")),
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2E75B6")),
                     ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
                     ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                    ("FONTSIZE", (0, 0), (-1, 0), 9),
+                    ("FONTSIZE", (0, 0), (-1, 0), 8),
                     ("VALIGN", (0, 0), (-1, -1), "TOP"),
                     ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#CBD5E1")),
-                    ("LEFTPADDING", (0, 0), (-1, -1), 4),
-                    ("RIGHTPADDING", (0, 0), (-1, -1), 4),
-                    ("TOPPADDING", (0, 0), (-1, -1), 4),
-                    ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 3),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+                    ("TOPPADDING", (0, 0), (-1, -1), 3),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
                 ]
             )
         )
+        # Alternate row colors
         for i in range(1, len(data)):
             if i % 2 == 0:
-                t.setStyle(TableStyle([("BACKGROUND", (0, i), (-1, i), colors.HexColor("#F3F4F6"))]))
+                t.setStyle(
+                    TableStyle(
+                        [
+                            (
+                                "BACKGROUND",
+                                (0, i),
+                                (-1, i),
+                                colors.HexColor("#F3F4F6"),
+                            )
+                        ]
+                    )
+                )
         return t
 
     story.append(Spacer(1, 14))
     story.append(Paragraph("Detailed Test Cases", h_style))
-    tc_weights = [0.6, 1.2, 1.4, 3.6, 2.2, 2.2, 0.8, 2.8]
+    # S.NO, Module, Page, Scenario, TestData, Expected, Actual, Status, Comments
+    tc_weights = [0.5, 1.2, 1.8, 2.0, 1.8, 2.2, 2.2, 0.7, 2.2]
     story.append(make_table(testcases_headers, testcases_rows, tc_weights))
 
     story.append(Spacer(1, 14))

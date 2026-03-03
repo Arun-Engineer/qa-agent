@@ -40,7 +40,7 @@ from agent.chat_orchestrator import (
 
 router = APIRouter(dependencies=[Depends(require_tenant)])
 
-ARTIFACT_BASE_DIR = Path(os.getenv("ARTIFACT_DIR", "artifacts")).resolve()
+ARTIFACT_BASE_DIR = Path(os.getenv("ARTIFACTS_DIR", str(Path("data") / "logs"))).resolve()
 ARTIFACT_BASE_DIR.mkdir(parents=True, exist_ok=True)
 
 
