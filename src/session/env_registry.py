@@ -37,17 +37,14 @@ class EnvRegistry:
         self._load()
 
     def _load(self):
-        """Load environments from YAML file."""
         p = Path(self.config_path)
         if not p.exists():
             logger.warning("env_config_missing", path=self.config_path)
             self._load_defaults()
             return
-
         try:
             with open(p) as f:
                 data = yaml.safe_load(f)
-
             for env_name, cfg in data.get("environments", {}).items():
                 name = cfg.pop("name", env_name)
                 self.envs[env_name] = EnvConfig(name=name, **cfg)
@@ -57,7 +54,6 @@ class EnvRegistry:
             self._load_defaults()
 
     def _load_defaults(self):
-        """Load sensible defaults if no config file exists."""
         self.envs = {
             "sit": EnvConfig(name="SIT", base_url="http://localhost:3000", access_mode="full"),
             "uat": EnvConfig(name="UAT", base_url="http://localhost:3001", access_mode="controlled"),
@@ -67,18 +63,15 @@ class EnvRegistry:
         logger.info("env_defaults_loaded", count=len(self.envs))
 
     def get(self, env_name: str) -> Optional[EnvConfig]:
-        """Get config for a specific environment."""
         return self.envs.get(env_name.lower())
 
     def list_all(self) -> list[dict]:
-        """List all environments with their config."""
         return [
             {"name": name, "base_url": cfg.base_url, "access_mode": cfg.access_mode}
             for name, cfg in self.envs.items()
         ]
 
     def validate_env(self, env_name: str) -> tuple[bool, str]:
-        """Check if an environment exists and is configured."""
         cfg = self.get(env_name)
         if cfg is None:
             available = ", ".join(self.envs.keys())

@@ -602,6 +602,19 @@ def download_artifact(filename: str, request: Request, session=Depends(require_s
 # -------------------------
 # Catch-all SPA fallback (MUST BE LAST)
 # -------------------------
+
+# ── Phase 3: LLM Config Page ──
+@router.get("/llm-config", include_in_schema=False)
+def llm_config_page(request: Request, session=Depends(require_session)):
+    """LLM Provider Configuration — Phase 3 admin panel."""
+    from pathlib import Path
+    from fastapi.responses import HTMLResponse
+    html_path = Path("templates/admin.html")
+    if not html_path.exists():
+        raise HTTPException(status_code=404, detail="admin.html not found in templates/")
+    return HTMLResponse(html_path.read_text(encoding="utf-8"))
+
+
 @router.get("/{path:path}", include_in_schema=False)
 def spa_fallback(path: str, request: Request):
     full_path = "/" + (path or "")

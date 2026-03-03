@@ -16,23 +16,16 @@ class AuditMiddleware(BaseHTTPMiddleware):
         path = request.url.path
         client = request.client.host
 
-        # Process request
         response = await call_next(request)
 
         duration_ms = round((time.time() - start) * 1000, 2)
         status = response.status_code
 
-        # Log audit trail
         log_fn = logger.info if status < 400 else logger.warning
         log_fn(
             "api_request",
-            method=method,
-            path=path,
-            status=status,
-            duration_ms=duration_ms,
-            client_ip=client,
+            method=method, path=path, status=status,
+            duration_ms=duration_ms, client_ip=client,
         )
-
-        # Add timing header
         response.headers["X-Response-Time-Ms"] = str(duration_ms)
         return response

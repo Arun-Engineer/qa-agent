@@ -94,3 +94,11 @@ def dashboard(request: Request, tenant: Tenant = Depends(require_tenant), sessio
         "dashboard.html",
         {"request": request, "tenant": tenant, "role": request.session.get("role"), "account_id": session["account_id"]},
     )
+
+@router.get("/admin", response_class=HTMLResponse)
+async def admin_page(request: Request, db: Session = Depends(get_db)):
+    tenant = require_tenant_from_request(request, db)
+    user_id = request.session.get("user_id") or request.session.get("account_id")
+    if not user_id:
+        return RedirectResponse(url="/login", status_code=303)
+    return templates.TemplateResponse("admin.html", {"request": request})

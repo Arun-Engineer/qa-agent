@@ -1,32 +1,11 @@
-"""Shared test fixtures."""
+import os
+import sys
 import pytest
-from fastapi.testclient import TestClient
-from src.api.main import create_app
-from src.api.dependencies import reset_stores
 
+# Ensure src/ is importable
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-@pytest.fixture(autouse=True)
-def clean_state():
-    """Reset all stores between tests."""
-    reset_stores()
-    yield
-    reset_stores()
-
-
-@pytest.fixture
-def app():
-    return create_app()
-
-
-@pytest.fixture
-def client(app):
-    """Test client with API key pre-set."""
-    c = TestClient(app)
-    c.headers["X-API-Key"] = "dev-secret-key-12345"
-    return c
-
-
-@pytest.fixture
-def unauth_client(app):
-    """Test client WITHOUT API key."""
-    return TestClient(app)
+@pytest.fixture(scope="session")
+def base_url() -> str:
+    url = (os.getenv("BASE_URL") or os.getenv("APP_BASE_URL") or "").strip()
+    return (url or "https://example.com").rstrip("/")

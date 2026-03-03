@@ -24,7 +24,6 @@ class SessionStore:
     # --- Session Operations ---
     def create_session(self, user_id: str, environment: str, task: str,
                        priority: str = "normal", feature_branch: str = None) -> SessionContext:
-        """Create a new isolated session."""
         ctx = SessionContext(
             user_id=user_id,
             environment=Environment(environment),
@@ -34,14 +33,11 @@ class SessionStore:
         )
         self._sessions[ctx.session_id] = ctx
         logger.info("session_created",
-                    session_id=ctx.session_id,
-                    user=user_id,
-                    env=environment,
-                    access_mode=ctx.access_mode.value)
+                    session_id=ctx.session_id, user=user_id,
+                    env=environment, access_mode=ctx.access_mode.value)
         return ctx
 
     def get_session(self, session_id: str) -> Optional[SessionContext]:
-        """Get a session by ID. Returns None if not found."""
         ctx = self._sessions.get(session_id)
         if ctx and ctx.is_expired and ctx.status == SessionStatus.ACTIVE:
             ctx.status = SessionStatus.EXPIRED
@@ -50,7 +46,6 @@ class SessionStore:
 
     def list_sessions(self, user_id: str = None, environment: str = None,
                       status: str = None) -> list[SessionContext]:
-        """List sessions with optional filters."""
         results = list(self._sessions.values())
         if user_id:
             results = [s for s in results if s.user_id == user_id]
@@ -61,7 +56,6 @@ class SessionStore:
         return sorted(results, key=lambda s: s.created_at, reverse=True)
 
     def cancel_session(self, session_id: str) -> Optional[SessionContext]:
-        """Cancel/stop a session."""
         ctx = self._sessions.get(session_id)
         if ctx:
             ctx.status = SessionStatus.CANCELLED
@@ -69,18 +63,15 @@ class SessionStore:
         return ctx
 
     def get_active_count(self) -> int:
-        """Count active (non-expired) sessions."""
         return sum(1 for s in self._sessions.values()
                    if s.status == SessionStatus.ACTIVE and not s.is_expired)
 
     # --- Run Operations ---
     def create_run(self, session_id: str, test_type: str = "smoke",
                    target_url: str = None, description: str = None) -> Optional[dict]:
-        """Create a test run within a session."""
         session = self.get_session(session_id)
         if not session:
             return None
-
         run = {
             "run_id": str(uuid.uuid4()),
             "session_id": session_id,

@@ -1,26 +1,29 @@
+# Environment configuration — loaded by src/session/env_registry.py
+# Each env defines access rules for the session manager.
+
 environments:
   sit:
-    name: System Integration Testing
-    base_url: https://sit.example.com
-    api_url: https://api-sit.example.com
+    name: SIT
+    base_url: "http://localhost:3000"
+    api_url: "http://localhost:3000/api"
     access_mode: full
     data_strategy: generate_freely
     approval_required: false
     session_timeout_minutes: 480
 
   uat:
-    name: User Acceptance Testing
-    base_url: https://uat.example.com
-    api_url: https://api-uat.example.com
+    name: UAT
+    base_url: "http://localhost:3001"
+    api_url: "http://localhost:3001/api"
     access_mode: controlled
-    data_strategy: use_seeded
+    data_strategy: seeded_only
     approval_required: false
     session_timeout_minutes: 240
 
   prod:
-    name: Production
-    base_url: https://www.example.com
-    api_url: https://api.example.com
+    name: PROD
+    base_url: "http://localhost:3002"
+    api_url: "http://localhost:3002/api"
     access_mode: read_only
     data_strategy: observe_only
     approval_required: true

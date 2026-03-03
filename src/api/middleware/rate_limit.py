@@ -1,6 +1,7 @@
 """Rate Limiting Middleware — Per-IP request throttling."""
-from fastapi import Request, HTTPException
+from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import JSONResponse
 from collections import defaultdict
 from datetime import datetime, timedelta
 import os
@@ -18,7 +19,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self._limit = int(os.getenv("API_RATE_LIMIT_PER_MINUTE", "60"))
 
     async def dispatch(self, request: Request, call_next):
-        client_ip = request.client.host
+        client_ip = request.client.host if request.client else "unknown"
         now = datetime.utcnow()
         window_start = now - timedelta(minutes=1)
 
@@ -27,12 +28,13 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             t for t in self._requests[client_ip] if t > window_start
         ]
 
-        # Check limit
+        # Check limit — return JSONResponse instead of raising HTTPException
+        # (raising inside middleware can cause "response already started" crashes)
         if len(self._requests[client_ip]) >= self._limit:
             logger.warning("rate_limit_exceeded", ip=client_ip, limit=self._limit)
-            raise HTTPException(
+            return JSONResponse(
                 status_code=429,
-                detail=f"Rate limit exceeded. Max {self._limit} requests per minute."
+                content={"detail": f"Rate limit exceeded. Max {self._limit} requests per minute."},
             )
 
         self._requests[client_ip].append(now)

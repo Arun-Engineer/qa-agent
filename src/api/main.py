@@ -1,9 +1,10 @@
 """FastAPI application for AI QA Agent v5.
 
-Phase 0+1: Foundation
+Phase 0+1+2: Foundation + Discovery Engine
   - Multi-tenant session management (SIT/UAT/PROD)
   - Environment-aware access control
   - Test run lifecycle
+  - Zero-knowledge site discovery (Phase 2)
   - Audit logging on every request
   - API key authentication
   - Rate limiting
@@ -31,8 +32,8 @@ START_TIME = time.time()
 def create_app() -> FastAPI:
     app = FastAPI(
         title="AI QA Agent",
-        version="5.0.0-phase1",
-        description="Autonomous QA Platform — Phase 0+1: Foundation",
+        version="5.0.0-phase3",
+        description="Autonomous QA Platform — Phase 0+1+2: Foundation + Discovery",
         docs_url="/docs",
         redoc_url="/redoc",
     )
@@ -48,11 +49,15 @@ def create_app() -> FastAPI:
     app.add_middleware(RateLimitMiddleware)
     app.add_middleware(AuthMiddleware)
 
-    # Routes
+    # Phase 1 routes
     from src.api.routes import sessions, runs, environments
     app.include_router(sessions.router, prefix="/api/v1/sessions", tags=["Sessions"])
     app.include_router(runs.router, prefix="/api/v1/runs", tags=["Runs"])
     app.include_router(environments.router, prefix="/api/v1/environments", tags=["Environments"])
+
+    # Phase 2 routes
+    from src.api.routes import discovery
+    app.include_router(discovery.router, prefix="/api/v1/discovery", tags=["Discovery"])
 
     # Health endpoint
     @app.get("/health", tags=["Health"])
@@ -62,14 +67,14 @@ def create_app() -> FastAPI:
         registry = get_env_registry()
         return {
             "status": "ok",
-            "version": "5.0.0-phase1",
+            "version": "5.0.0-phase3",
             "uptime_seconds": round(time.time() - START_TIME, 2),
             "active_sessions": store.get_active_count(),
             "total_runs": store.get_total_runs(),
             "environments": registry.list_all(),
         }
 
-    logger.info("app_started", version="5.0.0-phase1")
+    logger.info("app_started", version="5.0.0-phase3")
     return app
 
 

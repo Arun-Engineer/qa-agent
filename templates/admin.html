@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — AI QA Platform</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', sans-serif; background: #0a0e1a; color: #e0e0e0; min-height: 100vh; }
+    .container { max-width: 960px; margin: 0 auto; padding: 24px; }
+    h1 { color: #4fc3f7; margin-bottom: 8px; font-size: 1.6em; }
+    h2 { color: #81d4fa; margin: 24px 0 12px; font-size: 1.2em; border-bottom: 1px solid #1e3a5f; padding-bottom: 6px; }
+    .subtitle { color: #90a4ae; margin-bottom: 24px; font-size: 0.9em; }
+    .card { background: #111827; border: 1px solid #1e3a5f; border-radius: 10px; padding: 20px; margin-bottom: 16px; }
+    .card-row { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+    .card-half { flex: 1; min-width: 280px; }
+    label { display: block; color: #90a4ae; font-size: 0.85em; margin-bottom: 4px; }
+    select, input[type="text"] {
+      width: 100%; padding: 10px 12px; border-radius: 6px; border: 1px solid #2a3a5a;
+      background: #0d1117; color: #e0e0e0; font-size: 0.95em; outline: none;
+    }
+    select:focus, input:focus { border-color: #4fc3f7; }
+    .btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9em; font-weight: 600; transition: 0.2s; }
+    .btn-primary { background: #1976d2; color: white; }
+    .btn-primary:hover { background: #1565c0; }
+    .btn-success { background: #2e7d32; color: white; }
+    .btn-success:hover { background: #1b5e20; }
+    .btn-outline { background: transparent; border: 1px solid #4fc3f7; color: #4fc3f7; }
+    .btn-outline:hover { background: #4fc3f71a; }
+    .btn-sm { padding: 6px 14px; font-size: 0.82em; }
+    .status-badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 0.8em; font-weight: 600; }
+    .status-ok { background: #1b5e20; color: #a5d6a7; }
+    .status-err { background: #b71c1c; color: #ef9a9a; }
+    .status-warn { background: #e65100; color: #ffcc80; }
+    .toast { position: fixed; top: 20px; right: 20px; padding: 12px 20px; border-radius: 8px; z-index: 999; font-size: 0.9em; display: none; }
+    .toast-ok { background: #1b5e20; color: white; }
+    .toast-err { background: #b71c1c; color: white; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+    th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid #1e3a5f; }
+    th { color: #90a4ae; font-weight: 600; }
+    .nav-link { color: #4fc3f7; text-decoration: none; margin-right: 16px; }
+    .nav-link:hover { text-decoration: underline; }
+    .provider-icon { font-size: 1.2em; margin-right: 6px; }
+    #test-result { margin-top: 10px; padding: 8px 12px; border-radius: 6px; font-size: 0.85em; display: none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div style="margin-bottom: 16px;">
+      <a href="/dashboard" class="nav-link">← Dashboard</a>
+      <a href="/agent-ui" class="nav-link">Agent UI</a>
+      <a href="/docs" class="nav-link">API Docs</a>
+    </div>
+
+    <h1>⚙️ Admin Panel</h1>
+    <p class="subtitle">LLM Provider Configuration &amp; Tenant Settings</p>
+
+    <!-- LLM Provider Config -->
+    <h2>🤖 LLM Provider</h2>
+    <div class="card">
+      <div class="card-row">
+        <div class="card-half">
+          <label>Active Provider</label>
+          <select id="sel-provider" onchange="onProviderChange()">
+            <option value="openai">🟢 OpenAI</option>
+            <option value="anthropic">🟣 Anthropic (Claude)</option>
+          </select>
+        </div>
+        <div class="card-half">
+          <label>Active Model</label>
+          <select id="sel-model"></select>
+        </div>
+      </div>
+      <div class="card-row">
+        <div class="card-half">
+          <label>Available Providers</label>
+          <div id="available-providers" style="margin-top:4px;"></div>
+        </div>
+        <div class="card-half" style="display:flex; align-items:flex-end; gap:8px;">
+          <button class="btn btn-primary" onclick="saveProvider()">Save Provider &amp; Model</button>
+          <button class="btn btn-outline btn-sm" onclick="testConnection()">🔌 Test Connection</button>
+        </div>
+      </div>
+      <div id="test-result"></div>
+    </div>
+
+    <!-- Current Status -->
+    <h2>📊 Current Configuration</h2>
+    <div class="card">
+      <table>
+        <tr><th>Setting</th><th>Value</th></tr>
+        <tr><td>Provider</td><td id="info-provider">—</td></tr>
+        <tr><td>Model</td><td id="info-model">—</td></tr>
+        <tr><td>Default Provider</td><td id="info-default">—</td></tr>
+        <tr><td>Session Override</td><td id="info-override">—</td></tr>
+      </table>
+    </div>
+
+    <!-- Environment Settings (existing) -->
+    <h2>🌍 Environment</h2>
+    <div class="card">
+      <div class="card-row">
+        <div class="card-half">
+          <label>Active Environment</label>
+          <select id="sel-env">
+            <option value="SIT">SIT (System Integration)</option>
+            <option value="UAT">UAT (User Acceptance)</option>
+            <option value="PROD">PROD (Production — Read Only)</option>
+          </select>
+        </div>
+        <div class="card-half" style="display:flex; align-items:flex-end;">
+          <button class="btn btn-success" onclick="saveEnv()">Save Environment</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tenant Admin -->
+    <h2>👥 Tenant Members</h2>
+    <div class="card">
+      <table id="members-table">
+        <tr><th>Email</th><th>Role</th><th>Status</th></tr>
+        <tr><td colspan="3" style="color:#666;">Loading...</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    let allModels = {};
+    let currentInfo = {};
+
+    function toast(msg, ok) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.className = 'toast ' + (ok ? 'toast-ok' : 'toast-err');
+      el.style.display = 'block';
+      setTimeout(() => el.style.display = 'none', 3000);
+    }
+
+    async function loadLLMInfo() {
+      try {
+        const r = await fetch('/api/llm/info');
+        const d = await r.json();
+        currentInfo = d;
+
+        // Update dropdowns
+        document.getElementById('sel-provider').value = d.current_provider;
+
+        // Available providers badges
+        const ap = document.getElementById('available-providers');
+        ap.innerHTML = (d.available_providers || []).map(p =>
+          `<span class="status-badge status-ok">${p === 'openai' ? '🟢' : '🟣'} ${p}</span> `
+        ).join('') || '<span class="status-badge status-err">No providers configured</span>';
+
+        // Models
+        allModels = d.available_models || {};
+        populateModels(d.current_provider, d.current_model);
+
+        // Info table
+        document.getElementById('info-provider').textContent = d.current_provider;
+        document.getElementById('info-model').textContent = d.current_model;
+        document.getElementById('info-default').textContent = d.default_provider;
+        const ov = d.session_override || {};
+        document.getElementById('info-override').textContent =
+          (ov.provider || ov.model) ? `${ov.provider || '—'} / ${ov.model || '—'}` : 'None (using defaults)';
+      } catch (e) {
+        toast('Failed to load LLM info: ' + e.message, false);
+      }
+    }
+
+    function populateModels(provider, selected) {
+      const sel = document.getElementById('sel-model');
+      const models = allModels[provider] || [];
+      sel.innerHTML = models.map(m =>
+        `<option value="${m}" ${m === selected ? 'selected' : ''}>${m}</option>`
+      ).join('');
+      if (!models.length) {
+        sel.innerHTML = '<option value="">No models configured</option>';
+      }
+    }
+
+    function onProviderChange() {
+      const p = document.getElementById('sel-provider').value;
+      populateModels(p, '');
+    }
+
+    async function saveProvider() {
+      const provider = document.getElementById('sel-provider').value;
+      const model = document.getElementById('sel-model').value;
+      try {
+        const r = await fetch('/api/settings/provider', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ provider, model: model || null }),
+        });
+        const d = await r.json();
+        if (r.ok) {
+          toast(`Switched to ${d.active_provider} / ${d.active_model}`, true);
+          loadLLMInfo();
+        } else {
+          toast(d.detail || 'Failed to save', false);
+        }
+      } catch (e) {
+        toast('Error: ' + e.message, false);
+      }
+    }
+
+    async function testConnection() {
+      const provider = document.getElementById('sel-provider').value;
+      const model = document.getElementById('sel-model').value;
+      const el = document.getElementById('test-result');
+      el.style.display = 'block';
+      el.style.background = '#1a237e';
+      el.textContent = `Testing ${provider}...`;
+
+      try {
+        const r = await fetch('/api/llm/test', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ provider, model: model || null }),
+        });
+        const d = await r.json();
+        if (d.status === 'ok') {
+          el.style.background = '#1b5e20';
+          el.textContent = `✅ ${d.provider} connected — ${d.model} responded: "${d.response}" (${d.tokens} tokens)`;
+        } else {
+          el.style.background = '#b71c1c';
+          el.textContent = `❌ ${d.provider} failed: ${d.error}`;
+        }
+      } catch (e) {
+        el.style.background = '#b71c1c';
+        el.textContent = `❌ Error: ${e.message}`;
+      }
+    }
+
+    async function saveEnv() {
+      const env = document.getElementById('sel-env').value;
+      try {
+        const r = await fetch('/api/settings/environment', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ environment: env }),
+        });
+        const d = await r.json();
+        if (r.ok) toast(`Environment → ${d.active_env}`, true);
+        else toast(d.detail || 'Failed', false);
+      } catch (e) {
+        toast('Error: ' + e.message, false);
+      }
+    }
+
+    async function loadMembers() {
+      try {
+        const r = await fetch('/api/admin/members');
+        if (!r.ok) { document.getElementById('members-table').innerHTML = '<tr><td colspan="3" style="color:#666;">Access denied or no members</td></tr>'; return; }
+        const d = await r.json();
+        const rows = (d.members || d || []).map(m =>
+          `<tr><td>${m.email || '—'}</td><td>${m.role || '—'}</td>
+           <td><span class="status-badge ${m.status === 'active' ? 'status-ok' : 'status-warn'}">${m.status || '—'}</span></td></tr>`
+        ).join('');
+        document.getElementById('members-table').innerHTML =
+          '<tr><th>Email</th><th>Role</th><th>Status</th></tr>' + (rows || '<tr><td colspan="3">No members</td></tr>');
+      } catch (e) { /* ignore */ }
+    }
+
+    // Init
+    loadLLMInfo();
+    loadMembers();
+  </script>
+</body>
+</html>
