@@ -748,6 +748,9 @@ async function loadAdmin() {
   const meDiv = document.getElementById("adminMe");
   meDiv.innerHTML = `<div class="muted">Loading…</div>`;
 
+  // Load LLM config first
+  await loadLLMConfig();
+
   try {
     const me = await fetchJson("/api/admin/me");
 
@@ -1143,3 +1146,102 @@ async function clearAsk() {
 }
 
 window.grantPlatformRole = grantPlatformRole;
+
+/* ─────────────────────────────────────────
+   LLM Provider Config (Phase 3)
+───────────────────────────────────────── */
+let llmAllModels = {};
+
+async function loadLLMConfig() {
+  const statusDiv = document.getElementById("llmStatus");
+  if (!statusDiv) return;
+  statusDiv.innerHTML = "Loading LLM config...";
+
+  try {
+    const info = await fetchJson("/api/llm/info");
+    llmAllModels = info.available_models || {};
+
+    // Set provider dropdown
+    const provSel = document.getElementById("llmProvider");
+    if (provSel && info.current_provider) provSel.value = info.current_provider;
+
+    // Populate models
+    populateLLMModels(info.current_provider, info.current_model);
+
+    // Show available providers
+    const avail = info.available_providers || [];
+    const pills = avail.map(p =>
+      `<span class="admin-pill" style="background:${p === 'openai' ? '#166534' : '#581c87'};color:white;">${p === 'openai' ? '🟢' : '🟣'} ${p}</span>`
+    ).join(" ");
+    statusDiv.innerHTML = avail.length
+      ? `Available: ${pills}`
+      : `<span style="color:#ef4444;">⚠ No API keys configured. Add OPENAI_API_KEY or ANTHROPIC_API_KEY to .env</span>`;
+  } catch (e) {
+    statusDiv.innerHTML = `<span style="color:#ef4444;">Failed to load LLM config: ${escapeHtml(e.message)}</span>`;
+  }
+}
+
+function populateLLMModels(provider, selected) {
+  const sel = document.getElementById("llmModel");
+  if (!sel) return;
+  const models = llmAllModels[provider] || [];
+  sel.innerHTML = models.length
+    ? models.map(m => `<option value="${m}" ${m === selected ? 'selected' : ''}>${m}</option>`).join("")
+    : '<option value="">No models available</option>';
+}
+
+function onLLMProviderChange() {
+  const provider = document.getElementById("llmProvider").value;
+  populateLLMModels(provider, "");
+}
+
+async function saveLLMProvider() {
+  const provider = document.getElementById("llmProvider").value;
+  const model = document.getElementById("llmModel").value;
+  const statusDiv = document.getElementById("llmStatus");
+
+  try {
+    const res = await fetchJson("/api/settings/provider", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider, model: model || null }),
+    });
+    statusDiv.innerHTML = `<span style="color:#22c55e;">✓ Saved: ${escapeHtml(res.active_provider)} / ${escapeHtml(res.active_model)}</span>`;
+    await loadLLMConfig();
+  } catch (e) {
+    statusDiv.innerHTML = `<span style="color:#ef4444;">Save failed: ${escapeHtml(e.message)}</span>`;
+  }
+}
+
+async function testLLMConnection() {
+  const provider = document.getElementById("llmProvider").value;
+  const model = document.getElementById("llmModel").value;
+  const el = document.getElementById("llmTestResult");
+  if (!el) return;
+  el.style.display = "block";
+  el.style.background = "#1e3a5f";
+  el.style.color = "#e0e0e0";
+  el.textContent = `Testing ${provider}...`;
+
+  try {
+    const res = await fetchJson("/api/llm/test", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider, model: model || null }),
+    });
+    if (res.status === "ok") {
+      el.style.background = "#14532d";
+      el.textContent = `✅ ${res.provider} connected — ${res.model} responded: "${res.response}" (${res.tokens} tokens)`;
+    } else {
+      el.style.background = "#7f1d1d";
+      el.textContent = `❌ ${res.provider} failed: ${res.error}`;
+    }
+  } catch (e) {
+    el.style.background = "#7f1d1d";
+    el.textContent = `❌ Error: ${e.message}`;
+  }
+}
+
+window.onLLMProviderChange = onLLMProviderChange;
+window.saveLLMProvider = saveLLMProvider;
+window.testLLMConnection = testLLMConnection;

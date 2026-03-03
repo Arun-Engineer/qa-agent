@@ -94,6 +94,31 @@
         </div>
       </div>
 
+      <!-- LLM Provider Config -->
+      <div class="card admin-card" id="llmConfigCard">
+        <div class="admin-card-title">🤖 LLM Provider</div>
+        <div class="admin-form">
+          <div class="admin-field">
+            <label class="admin-label" for="llmProvider">Provider</label>
+            <select id="llmProvider" class="admin-select" onchange="onLLMProviderChange()">
+              <option value="openai">🟢 OpenAI</option>
+              <option value="anthropic">🟣 Anthropic (Claude)</option>
+            </select>
+          </div>
+          <div class="admin-field">
+            <label class="admin-label" for="llmModel">Model</label>
+            <select id="llmModel" class="admin-select"></select>
+          </div>
+          <div class="admin-field admin-actions">
+            <label class="admin-label" style="opacity:0;">Actions</label>
+            <button class="btn btn-primary" onclick="saveLLMProvider()">Save</button>
+            <button class="btn btn-ghost btn-sm" onclick="testLLMConnection()" style="margin-left:8px;">🔌 Test</button>
+          </div>
+        </div>
+        <div id="llmStatus" class="muted" style="margin-top:10px;"></div>
+        <div id="llmTestResult" style="margin-top:8px;display:none;padding:8px 12px;border-radius:6px;font-size:0.85em;"></div>
+      </div>
+
       <div class="card admin-card">
         <div class="admin-card-title">Current Access</div>
         <div id="adminMe" class="admin-kv"></div>

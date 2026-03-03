@@ -105,3 +105,13 @@ class AuditLog(Base):
     meta_json = Column(Text, nullable=True)
 
     created_at = Column(DateTime, default=dt.datetime.utcnow, nullable=False)
+
+class TenantDomain(Base):
+    """Custom domain mapping — imported by tenancy/resolve.py."""
+    __tablename__ = "tenant_domains"
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    tenant_id = Column(String(36), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    domain = Column(String(255), unique=True, nullable=False, index=True)
+    is_verified = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime, default=dt.datetime.utcnow, nullable=False)

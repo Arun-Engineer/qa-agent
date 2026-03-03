@@ -107,32 +107,22 @@ class SessionContext:
         return self.access_mode != AccessMode.READ_ONLY and not self.is_expired
 
     def validate_action(self, action: str) -> tuple[bool, str]:
-        """Check if an action is allowed in this session's environment.
-
-        Returns (allowed: bool, reason: str)
-        """
+        """Check if an action is allowed in this session's environment."""
         if self.is_expired:
             return False, f"Session expired at {self.expires_at}"
-
         if self.status != SessionStatus.ACTIVE:
             return False, f"Session is {self.status.value}"
-
         if action == "write" and not self.can_write:
             return False, f"Write not allowed in {self.environment.value} (read-only)"
-
         if action == "generate_data" and not self.can_generate_data:
             return False, f"Data generation not allowed in {self.environment.value}"
-
         if action == "destructive" and not self.can_run_destructive:
             return False, f"Destructive tests not allowed in {self.environment.value}"
-
         if action in ("destructive", "write") and self.approval_required:
             return False, f"Action '{action}' requires approval in {self.environment.value}"
-
         return True, "OK"
 
     def to_dict(self) -> dict:
-        """Serialize session for API responses."""
         return {
             "session_id": self.session_id,
             "user_id": self.user_id,

@@ -11,38 +11,23 @@ router = APIRouter()
 
 @router.post("/", response_model=SessionResponse, status_code=201)
 async def create_session(req: CreateSessionRequest):
-    """Create a new isolated test session.
-
-    Environment rules are automatically applied:
-    - SIT: full access, generate data freely
-    - UAT: controlled access, use seeded data
-    - PROD: read-only, every action needs approval
-    """
     store = get_store()
     registry = get_env_registry()
 
-    # Validate environment exists
     valid, msg = registry.validate_env(req.environment)
     if not valid:
         raise HTTPException(status_code=400, detail=msg)
 
     ctx = store.create_session(
-        user_id=req.user_id,
-        environment=req.environment,
-        task=req.task,
-        priority=req.priority,
-        feature_branch=req.feature_branch,
+        user_id=req.user_id, environment=req.environment,
+        task=req.task, priority=req.priority, feature_branch=req.feature_branch,
     )
 
     return SessionResponse(
-        session_id=ctx.session_id,
-        user_id=ctx.user_id,
-        environment=ctx.environment.value,
-        task=ctx.task,
-        access_mode=ctx.access_mode.value,
-        priority=ctx.priority,
-        can_write=ctx.can_write,
-        created_at=ctx.created_at.isoformat(),
+        session_id=ctx.session_id, user_id=ctx.user_id,
+        environment=ctx.environment.value, task=ctx.task,
+        access_mode=ctx.access_mode.value, priority=ctx.priority,
+        can_write=ctx.can_write, created_at=ctx.created_at.isoformat(),
         expires_at=ctx.expires_at.isoformat() if ctx.expires_at else None,
         status=ctx.status.value,
     )
@@ -54,7 +39,6 @@ async def list_sessions(
     environment: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
 ):
-    """List sessions with optional filters."""
     store = get_store()
     sessions = store.list_sessions(user_id=user_id, environment=environment, status=status)
     return SessionListResponse(
@@ -75,12 +59,10 @@ async def list_sessions(
 
 @router.get("/{session_id}", response_model=SessionResponse)
 async def get_session(session_id: str):
-    """Get session details including access rules and expiry status."""
     store = get_store()
     ctx = store.get_session(session_id)
     if not ctx:
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
-
     return SessionResponse(
         session_id=ctx.session_id, user_id=ctx.user_id,
         environment=ctx.environment.value, task=ctx.task,
@@ -93,7 +75,6 @@ async def get_session(session_id: str):
 
 @router.delete("/{session_id}")
 async def cancel_session(session_id: str):
-    """Cancel/stop an active session."""
     store = get_store()
     ctx = store.cancel_session(session_id)
     if not ctx:
@@ -103,14 +84,9 @@ async def cancel_session(session_id: str):
 
 @router.post("/{session_id}/validate-action")
 async def validate_action(session_id: str, action: str = Query(...)):
-    """Check if an action is allowed in this session's environment.
-
-    Actions: write, generate_data, destructive, read
-    """
     store = get_store()
     ctx = store.get_session(session_id)
     if not ctx:
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
-
     allowed, reason = ctx.validate_action(action)
     return {"session_id": session_id, "action": action, "allowed": allowed, "reason": reason}

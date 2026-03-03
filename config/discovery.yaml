@@ -1,0 +1,50 @@
+# Discovery Engine configuration — loaded by src/discovery/engine.py
+
+crawl:
+  default_max_pages: 50
+  default_max_depth: 3
+  default_strategy: bfs        # bfs | dfs
+  page_timeout_ms: 30000       # per-page navigation timeout
+  wait_after_load_ms: 2000     # wait for SPA rendering
+  respect_robots_txt: true
+  user_agent: "QA-Agent-Discovery/5.0"
+  concurrent_pages: 1          # Phase 2: serial. Phase 4: parallel.
+
+screenshots:
+  enabled: true
+  format: png                  # png | jpeg
+  full_page: true
+  output_dir: "data/discovery/screenshots"
+
+classification:
+  # LLM-based page type classification
+  llm_enabled: false           # set true when OPENAI_API_KEY is available
+  llm_model: "gpt-4o-mini"
+  # Heuristic fallback: always runs (fast, no API cost)
+  heuristic_enabled: true
+  # Confidence threshold: below this → mark as "unknown"
+  min_confidence: 0.4
+
+fingerprinting:
+  # DOM component discovery
+  interactive_selectors:
+    buttons: "button, [role='button'], input[type='submit'], input[type='button'], a.btn"
+    inputs: "input, textarea, select, [contenteditable='true']"
+    forms: "form, [role='form']"
+    navigation: "nav, [role='navigation'], .navbar, .sidebar"
+    media: "img, video, audio, canvas, svg"
+    cards: "[class*='card'], [class*='product'], [class*='item'], [class*='tile']"
+
+api_capture:
+  enabled: true
+  ignore_patterns:
+    - ".*\\.png$"
+    - ".*\\.jpg$"
+    - ".*\\.css$"
+    - ".*\\.woff2?$"
+    - ".*\\.svg$"
+    - ".*google-analytics\\.com.*"
+    - ".*facebook\\.com.*"
+    - ".*doubleclick\\.net.*"
+  capture_request_body: false   # GDPR: off by default
+  capture_response_body: false

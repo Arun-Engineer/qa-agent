@@ -26,3 +26,45 @@ reports/*.json
 venv/
 env/
 ENV/
+.archive/
+data/chroma/
+data/app.db
+data/discovery/
+.report.json
+
+# --- secrets / env ---
+.env
+.env.*
+!.env.example
+
+# --- python venvs ---
+.venv/
+venv/
+env/
+
+# --- python cache ---
+__pycache__/
+*.py[cod]
+*.pyd
+
+# --- test / tooling caches ---
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.cache/
+
+# --- logs / outputs ---
+logs/
+artifacts/
+reports/
+output/
+*.log
+
+# --- editor / OS ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

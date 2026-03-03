@@ -1,7 +1,8 @@
 # asgi.py
 import os
 from pathlib import Path
-
+from dotenv import load_dotenv
+load_dotenv()
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.exception_handlers import http_exception_handler as fastapi_http_exception_handler
 from fastapi.responses import RedirectResponse
@@ -103,7 +104,19 @@ tenant_app.include_router(auth_router)
 # ✅ Phase 2 admin router first
 tenant_app.include_router(admin_api_router)
 
-# Agent APIs (your existing QA agent endpoints)
+# Phase 2: Discovery Engine API
+from src.api.routes.discovery import router as discovery_router
+tenant_app.include_router(discovery_router, prefix="/api/v1/discovery", tags=["Discovery"])
+
+# Phase 3: LLM Provider Settings API (MUST be before agent_api_router catch-all)
+from src.api.routes.llm_settings import router as llm_settings_router
+tenant_app.include_router(llm_settings_router, tags=["LLM Settings"])
+
+# Phase 3: Cognitive Agents API
+from src.api.routes.cognitive import router as cognitive_router
+tenant_app.include_router(cognitive_router, prefix="/api/v1/cognitive", tags=["Cognitive"])
+
+# Agent APIs — LAST because it has /{path:path} catch-all
 tenant_app.include_router(agent_api_router)
 
 # ✅ Phase 0+1 JSON APIs under /api/v1/*
@@ -119,7 +132,7 @@ async def health():
     registry = get_env_registry()
     return {
         "status": "ok",
-        "version": "5.0.0-phase1",
+        "version": "5.0.0-phase3",
         "active_sessions": store.get_active_count(),
         "total_runs": store.get_total_runs(),
         "environments": registry.list_all(),
