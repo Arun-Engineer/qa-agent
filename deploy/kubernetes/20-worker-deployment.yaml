@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qa-agent-worker
+  namespace: qa-agent
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: qa-agent-worker
+  template:
+    metadata:
+      labels:
+        app: qa-agent-worker
+    spec:
+      containers:
+        - name: worker
+          image: qa-agent:latest
+          command: ["python", "-m", "src.api.worker"]
+          envFrom:
+            - configMapRef:
+                name: qa-agent-config
+            - secretRef:
+                name: qa-agent-secrets
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: 2000m
+              memory: 2Gi
+          volumeMounts:
+            - name: artifacts
+              mountPath: /app/artifacts
+      volumes:
+        - name: artifacts
+          emptyDir:
+            sizeLimit: 5Gi
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: qa-agent-worker-hpa
+  namespace: qa-agent
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: qa-agent-worker
+  minReplicas: 2
+  maxReplicas: 15
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 60
