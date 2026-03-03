@@ -18,6 +18,8 @@
     "settings:environment:update",
     "settings:model:view",
     "settings:model:update",
+    "settings:llm:view",
+    "settings:llm:update",
 
     "users:view",
     "users:invite",
@@ -55,6 +57,8 @@
         "settings:environment:update",
         "settings:model:view",
         "settings:model:update",
+        "settings:llm:view",
+        "settings:llm:update",
 
         "users:view",
         "users:invite",

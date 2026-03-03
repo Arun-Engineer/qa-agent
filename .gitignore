@@ -73,3 +73,8 @@ Thumbs.db
 *.bak
 *.bak2
 
+# --- runtime/generated ---
+data/*.db
+data/runs.json
+.report.json
+*.report.json
