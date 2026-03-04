@@ -78,3 +78,8 @@ data/*.db
 data/runs.json
 .report.json
 *.report.json
+
+# Local UI junk
+files/
+ui/backups/
+
