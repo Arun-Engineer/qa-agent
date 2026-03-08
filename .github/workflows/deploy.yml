@@ -1,0 +1,130 @@
+# .github/workflows/deploy.yml
+# Deploys to AWS Fargate
+# - Staging: auto on main push (after CI passes)
+# - Production: manual approval via GitHub environment
+
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+
+env:
+  AWS_REGION: ap-south-1  # Change to your region
+  ECS_CLUSTER: aiqa-cluster
+  ECS_SERVICE_STAGING: aiqa-staging
+  ECS_SERVICE_PROD: aiqa-production
+  TASK_DEFINITION: deploy/ecs-task-def.json
+
+jobs:
+  # ═══════════════════════════════════
+  # Deploy to Staging (automatic)
+  # ═══════════════════════════════════
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    environment: staging
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Update ECS task definition
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ${{ env.TASK_DEFINITION }}
+          container-name: aiqa-app
+          image: ${{ steps.ecr.outputs.registry }}/${{ secrets.ECR_REPOSITORY }}:${{ github.event.workflow_run.head_sha }}
+          environment-variables: |
+            APP_ENV=staging
+            DATABASE_URL=${{ secrets.STAGING_DATABASE_URL }}
+            SESSION_SECRET=${{ secrets.STAGING_SESSION_SECRET }}
+            OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+
+      - name: Deploy to Staging
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE_STAGING }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
+
+      - name: Smoke test staging
+        run: |
+          sleep 10
+          STAGING_URL="${{ secrets.STAGING_URL }}"
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$STAGING_URL/health")
+          if [ "$STATUS" != "200" ]; then
+            echo "Staging health check failed: HTTP $STATUS"
+            exit 1
+          fi
+          echo "Staging is healthy"
+
+  # ═══════════════════════════════════
+  # Deploy to Production (manual approval)
+  # ═══════════════════════════════════
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    environment: production  # Requires manual approval in GitHub settings
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Update ECS task definition
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ${{ env.TASK_DEFINITION }}
+          container-name: aiqa-app
+          image: ${{ steps.ecr.outputs.registry }}/${{ secrets.ECR_REPOSITORY }}:${{ github.event.workflow_run.head_sha }}
+          environment-variables: |
+            APP_ENV=production
+            DATABASE_URL=${{ secrets.PROD_DATABASE_URL }}
+            SESSION_SECRET=${{ secrets.PROD_SESSION_SECRET }}
+            OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+
+      - name: Deploy to Production
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE_PROD }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
+
+      - name: Smoke test production
+        run: |
+          sleep 10
+          PROD_URL="${{ secrets.PROD_URL }}"
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$PROD_URL/health")
+          if [ "$STATUS" != "200" ]; then
+            echo "Production health check failed: HTTP $STATUS"
+            exit 1
+          fi
+          echo "Production is healthy"

@@ -1,7 +1,23 @@
+# .dockerignore
+.git
+.github
 .venv
 __pycache__
 *.pyc
-.git
-.gitignore
-data/runs.json
+.env
+.env.*
+data/
+logs/
+reports/
+*.db
+*.sqlite
+*.sqlite3
 node_modules
+.pytest_cache
+.ruff_cache
+htmlcov
+.coverage
+*.egg-info
+.backups/
+deploy/docker-compose.yml
+tests/

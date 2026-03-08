@@ -1,33 +1,62 @@
-FROM python:3.12-slim AS base
+# deploy/Dockerfile — Multi-stage production build for AI QA Platform
+# Stage 1: Build dependencies
+# Stage 2: Slim runtime image
 
+# ═══════════════════════════════════
+# Stage 1: Build
+# ═══════════════════════════════════
+FROM python:3.11-slim AS builder
+
+WORKDIR /build
+
+# System deps for building Python packages
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl chromium chromium-driver \
-    libglib2.0-0 libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 \
-    libcups2 libdrm2 libdbus-1-3 libxkbcommon0 libxcomposite1 \
-    libxdamage1 libxrandr2 libgbm1 libpango-1.0-0 libcairo2 \
-    libasound2 libxshmfence1 fonts-liberation fonts-noto-color-emoji \
+    build-essential \
     && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+
+# ═══════════════════════════════════
+# Stage 2: Runtime
+# ═══════════════════════════════════
+FROM python:3.11-slim
+
+LABEL maintainer="AI QA Platform"
+LABEL version="5.0.0"
 
 WORKDIR /app
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -r requirements.txt
+# System deps for runtime (Playwright browsers, etc.)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN playwright install chromium && playwright install-deps chromium
+# Copy Python packages from builder
+COPY --from=builder /install /usr/local
 
-COPY src/ ./src/
-COPY config/ ./config/
+# Copy application code
+COPY . .
 
-RUN groupadd -r qaagent && useradd -r -g qaagent -d /app -s /sbin/nologin qaagent \
-    && mkdir -p /app/artifacts /app/logs /tmp/pw_artifacts /tmp/reports \
-    && chown -R qaagent:qaagent /app /tmp/pw_artifacts /tmp/reports
+# Create data directories
+RUN mkdir -p data/logs data/chroma data/runs
 
-USER qaagent
+# Non-root user for security
+RUN groupadd -r aiqa && useradd -r -g aiqa -d /app aiqa \
+    && chown -R aiqa:aiqa /app/data
+USER aiqa
 
-EXPOSE 8000
+# Environment defaults (override via ECS task def or docker-compose)
+ENV APP_ENV=production \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PORT=8000
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+# Health check
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:${PORT}/health || exit 1
 
-CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+EXPOSE ${PORT}
+
+# Run with uvicorn
+CMD ["python", "-m", "uvicorn", "asgi:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
