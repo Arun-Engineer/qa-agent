@@ -1,0 +1,26 @@
+# ruff.toml — Linting configuration
+
+target-version = "py311"
+line-length = 120
+
+[lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "UP",  # pyupgrade
+]
+ignore = [
+    "E501",  # line too long (handled by formatter)
+    "B008",  # do not perform function calls in argument defaults (FastAPI Depends)
+    "B904",  # raise from (noisy in error handlers)
+]
+
+[lint.per-file-ignores]
+"tests/*" = ["B", "E"] # Relax rules in tests
+
+[format]
+quote-style = "double"
+indent-style = "space"

@@ -1,0 +1,50 @@
+{
+  "family": "aiqa-platform",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "executionRoleArn": "arn:aws:iam::ACCOUNT_ID:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::ACCOUNT_ID:role/aiqa-task-role",
+  "containerDefinitions": [
+    {
+      "name": "aiqa-app",
+      "image": "ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com/aiqa-platform:latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 8000,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        {"name": "APP_ENV", "value": "staging"},
+        {"name": "PORT", "value": "8000"},
+        {"name": "DEFAULT_TENANT", "value": "local"},
+        {"name": "RAG_ENABLED", "value": "1"},
+        {"name": "QA_MAX_RETRIES", "value": "3"},
+        {"name": "QA_STEP_TIMEOUT", "value": "120"}
+      ],
+      "secrets": [
+        {"name": "DATABASE_URL", "valueFrom": "arn:aws:ssm:REGION:ACCOUNT_ID:parameter/aiqa/database-url"},
+        {"name": "SESSION_SECRET", "valueFrom": "arn:aws:ssm:REGION:ACCOUNT_ID:parameter/aiqa/session-secret"},
+        {"name": "OPENAI_API_KEY", "valueFrom": "arn:aws:ssm:REGION:ACCOUNT_ID:parameter/aiqa/openai-api-key"}
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/aiqa-platform",
+          "awslogs-region": "REGION",
+          "awslogs-stream-prefix": "aiqa"
+        }
+      },
+      "healthCheck": {
+        "command": ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 15
+      }
+    }
+  ]
+}
