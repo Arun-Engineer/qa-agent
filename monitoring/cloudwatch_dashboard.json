@@ -1,0 +1,89 @@
+{
+  "widgets": [
+    {
+      "type": "metric",
+      "x": 0, "y": 0, "width": 12, "height": 6,
+      "properties": {
+        "title": "API Request Count",
+        "metrics": [
+          ["AWS/ApplicationELB", "RequestCount", "TargetGroup", "aiqa-tg", {"stat": "Sum", "period": 60}]
+        ],
+        "view": "timeSeries",
+        "region": "ap-south-1"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12, "y": 0, "width": 12, "height": 6,
+      "properties": {
+        "title": "API Response Time (p50, p95, p99)",
+        "metrics": [
+          ["AWS/ApplicationELB", "TargetResponseTime", "TargetGroup", "aiqa-tg", {"stat": "p50", "period": 60}],
+          ["...", {"stat": "p95"}],
+          ["...", {"stat": "p99"}]
+        ],
+        "view": "timeSeries",
+        "region": "ap-south-1"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0, "y": 6, "width": 8, "height": 6,
+      "properties": {
+        "title": "ECS CPU Utilization",
+        "metrics": [
+          ["AWS/ECS", "CPUUtilization", "ClusterName", "aiqa-cluster", "ServiceName", "aiqa-staging", {"stat": "Average", "period": 60}],
+          ["...", "aiqa-production", {"stat": "Average"}]
+        ],
+        "view": "timeSeries",
+        "region": "ap-south-1"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 8, "y": 6, "width": 8, "height": 6,
+      "properties": {
+        "title": "ECS Memory Utilization",
+        "metrics": [
+          ["AWS/ECS", "MemoryUtilization", "ClusterName", "aiqa-cluster", "ServiceName", "aiqa-staging", {"stat": "Average", "period": 60}],
+          ["...", "aiqa-production", {"stat": "Average"}]
+        ],
+        "view": "timeSeries",
+        "region": "ap-south-1"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 16, "y": 6, "width": 8, "height": 6,
+      "properties": {
+        "title": "Running Task Count",
+        "metrics": [
+          ["AWS/ECS", "RunningTaskCount", "ClusterName", "aiqa-cluster", "ServiceName", "aiqa-staging"],
+          ["...", "aiqa-production"]
+        ],
+        "view": "singleValue",
+        "region": "ap-south-1"
+      }
+    },
+    {
+      "type": "log",
+      "x": 0, "y": 12, "width": 24, "height": 6,
+      "properties": {
+        "title": "Application Errors (Last 1h)",
+        "query": "SOURCE '/ecs/aiqa-platform' | filter @message like /error|ERROR|exception|Exception|500/ | sort @timestamp desc | limit 50",
+        "region": "ap-south-1",
+        "view": "table"
+      }
+    },
+    {
+      "type": "log",
+      "x": 0, "y": 18, "width": 24, "height": 6,
+      "properties": {
+        "title": "Test Run Activity",
+        "query": "SOURCE '/ecs/aiqa-platform' | filter @message like /run_completed|run_failed|workflow/ | sort @timestamp desc | limit 30",
+        "region": "ap-south-1",
+        "view": "table"
+      }
+    }
+  ]
+}

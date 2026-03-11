@@ -83,3 +83,9 @@ data/runs.json
 files/
 ui/backups/
 
+
+# Local backups / junk
+.backups/
+ui/backups/
+files/
+

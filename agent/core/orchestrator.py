@@ -15,6 +15,7 @@ Features:
 from __future__ import annotations
 
 import datetime as dt
+from datetime import timezone as _tz
 import time
 import traceback
 from dataclasses import dataclass, field
@@ -119,7 +120,7 @@ class OrchestratorEvent:
 
     def __post_init__(self):
         if not self.timestamp:
-            self.timestamp = dt.datetime.utcnow().isoformat()
+            self.timestamp = dt.datetime.now(_tz.utc).isoformat()
 
 
 # ─── Orchestrator ───
@@ -167,7 +168,7 @@ class Orchestrator:
             run_id=run_id,
             state=RunState.INIT,
             workflow=workflow.name,
-            started_at=dt.datetime.utcnow().isoformat(),
+            started_at=dt.datetime.now(_tz.utc).isoformat(),
             context=context or {},
         )
 
@@ -208,7 +209,7 @@ class Orchestrator:
 
         elapsed = (time.time() - start) * 1000
         self._run.duration_ms = round(elapsed, 2)
-        self._run.finished_at = dt.datetime.utcnow().isoformat()
+        self._run.finished_at = dt.datetime.now(_tz.utc).isoformat()
 
         return self._run
 
@@ -313,7 +314,6 @@ class Orchestrator:
         """Execute one step with retry logic."""
         tool = step.get("tool", "unknown")
         start = time.time()
-        retries = 0
 
         for attempt in range(self.config.max_retries + 1):
             try:
@@ -333,11 +333,10 @@ class Orchestrator:
                     status=status,
                     output=output,
                     duration_ms=round(elapsed, 2),
-                    retries=retries,
+                    retries=attempt,
                 )
 
             except TimeoutError:
-                retries = attempt
                 elapsed = (time.time() - start) * 1000
                 return StepResult(
                     step_index=index,
@@ -345,7 +344,7 @@ class Orchestrator:
                     status="error",
                     error=f"Timeout after {self.config.step_timeout}s",
                     duration_ms=round(elapsed, 2),
-                    retries=retries,
+                    retries=attempt,
                 )
 
             except Exception as e:
@@ -366,7 +365,7 @@ class Orchestrator:
                         status="error",
                         error=f"Failed after {self.config.max_retries} retries: {str(e)}",
                         duration_ms=round(elapsed, 2),
-                        retries=retries,
+                        retries=attempt,
                         diagnosis=self._diagnose_error(e, step),
                     )
 
@@ -473,7 +472,7 @@ class Orchestrator:
             "type": type(error).__name__,
             "message": str(error),
             "traceback": traceback.format_exc(),
-            "timestamp": dt.datetime.utcnow().isoformat(),
+            "timestamp": dt.datetime.now(_tz.utc).isoformat(),
         })
         self._emit(EventType.ERROR, f"Run failed: {error}")
 

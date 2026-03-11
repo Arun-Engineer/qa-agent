@@ -67,12 +67,37 @@
     <div class="main">
       <!-- DASHBOARD -->
       <div id="dashboard">
-        <h2>System Analytics</h2>
-        <div style="margin-bottom:20px;">
-          <span style="color:#22c55e;">&#9679;</span> System Online
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:10px">
+          <div>
+            <h2 style="margin:0">System Analytics</h2>
+            <div style="margin-top:4px"><span style="color:#22c55e;">&#9679;</span> <span class="muted">System Online</span></div>
+          </div>
+          <div style="display:flex;gap:10px;align-items:end">
+            <div>
+              <label class="admin-label" style="display:block;margin-bottom:3px;font-size:10px">Category</label>
+              <select id="dashCategory" class="admin-select" style="width:140px;height:36px;font-size:12px" onchange="setFilter()">
+                <option value="overall">Overall</option>
+                <option value="sanity">Sanity</option>
+                <option value="regression">Regression</option>
+                <option value="spec">Spec</option>
+              </select>
+            </div>
+            <div>
+              <label class="admin-label" style="display:block;margin-bottom:3px;font-size:10px">Period</label>
+              <select id="dashPeriod" class="admin-select" style="width:140px;height:36px;font-size:12px" onchange="setFilter()">
+                <option value="all">All Time</option>
+                <option value="daily">Today</option>
+                <option value="weekly">This Week</option>
+                <option value="monthly">This Month</option>
+              </select>
+            </div>
+          </div>
         </div>
 
-        <div class="cards">
+        
+        
+
+        <div class="cards" style="margin-bottom:10px">
           <div class="card"><div class="rv-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div><p>Total Runs</p><h3 id="totalRuns"></h3></div>
           <div class="card"><div class="rv-card-icon" style="color:rgba(34,197,94,0.4)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div><p>Pass Rate</p><h3 id="passRate"></h3></div>
           <div class="card"><div class="rv-card-icon" style="color:rgba(16,185,129,0.4)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div><p>Total Passed</p><h3 id="totalPassed"></h3></div>
@@ -94,12 +119,41 @@
           </div>
         </div>
 
-        <canvas id="metricsChart"></canvas>
+        <!-- Token Usage Card -->
+        <div class="card" id="tokenUsageCard" style="margin-top:8px">
+          <div class="rv-section-title">
+            LLM Token Usage
+            <div class="rv-help" tabindex="0">?
+              <div class="rv-tooltip">Tracks total tokens consumed by LLM calls. Resets per session. Helps monitor API costs.</div>
+            </div>
+          </div>
+
+        <canvas id="metricsChart" style="display:none"></canvas>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px">
+            <div class="rv-llm-item"><div class="rv-llm-label">Total Tokens</div><div class="rv-llm-val" id="dashTotalTokens">0</div></div>
+            <div class="rv-llm-item"><div class="rv-llm-label">Prompt Tokens</div><div class="rv-llm-val" id="dashPromptTokens">0</div></div>
+            <div class="rv-llm-item"><div class="rv-llm-label">Completion Tokens</div><div class="rv-llm-val" id="dashCompletionTokens">0</div></div>
+            <div class="rv-llm-item"><div class="rv-llm-label">Est. Cost</div><div class="rv-llm-val" id="dashEstCost">$0.00</div></div>
+          </div>
+        </div>
+
       </div>
 
       <!-- EXECUTOR -->
       <div id="executor" class="hidden">
         <h2>Execute User Story</h2>
+        <div style="margin-bottom:10px">
+          <label class="admin-label" style="margin-bottom:6px;display:block">Workflow</label>
+          <div style="display:inline-flex;gap:12px;align-items:center">
+            <select id="workflowSelect" class="admin-select" style="width:280px" onchange="var d=document.getElementById('workflowDesc');if(d)d.textContent={'api_test':'Generate and execute API tests from a spec','ui_test':'Crawl site + generate Playwright browser tests','spec_review':'Analyze spec for gaps, ambiguity & testability (no execution)','visual_qa':'Screenshot pages and analyze visuals with GPT-4o vision'}[this.value]||''">
+              <option value="api_test">API Test Agent</option>
+              <option value="ui_test">UI Test Agent</option>
+              <option value="spec_review">Spec Review Agent</option>
+              <option value="visual_qa">Visual QA Agent (Screenshots + AI Vision)</option>
+            </select>
+            <span id="workflowDesc" class="muted" style="font-size:12px">Generate and execute API tests from a spec</span>
+          </div>
+        </div>
         <div class="upload-row">
           <label class="file-pill">
             <input type="file" id="specFile" accept=".pdf,.docx,.txt,.md" />
@@ -127,7 +181,30 @@
 
       <!-- RUNS -->
       <div id="runs" class="hidden">
-        <h2>Execution History</h2>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:10px">
+          <h2 style="margin:0">Execution History</h2>
+          <div style="display:flex;gap:10px;align-items:end">
+            <div>
+              <label class="admin-label" style="display:block;margin-bottom:3px;font-size:10px">Category</label>
+              <select id="histCategory" class="admin-select" style="width:140px;height:36px;font-size:12px" onchange="setHistoryFilter()">
+                <option value="all">All</option>
+                <option value="sanity">Sanity</option>
+                <option value="regression">Regression</option>
+                <option value="spec">Spec</option>
+              </select>
+            </div>
+            <div>
+              <label class="admin-label" style="display:block;margin-bottom:3px;font-size:10px">Period</label>
+              <select id="histPeriod" class="admin-select" style="width:140px;height:36px;font-size:12px" onchange="setHistoryFilter()">
+                <option value="all">All Time</option>
+                <option value="daily">Today</option>
+                <option value="weekly">This Week</option>
+                <option value="monthly">This Month</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        
         <div id="runsList"></div>
       </div>
 
@@ -292,5 +369,7 @@
 
   <script src="/static/app.js"></script>
   <script src="/static/revamp.js"></script>
+
+  
 </body>
 </html>

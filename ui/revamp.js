@@ -206,7 +206,7 @@ function rvStartConsolePolling() {
     } catch (e) {
       // silent
     }
-  }, 5000);
+  }, 60000); // Poll audit only once per minute when console is open
 
   // Also intercept console.error to show in panel
   var origError = console.error;
@@ -273,7 +273,7 @@ document.addEventListener("DOMContentLoaded", function () {
   rvHealthCheck();
 
   // Re-check health every 60 seconds
-  setInterval(rvHealthCheck, 60000);
+  // Health check runs once on boot only (no interval)
 });
 
 /* ─── Expose globals ─── */

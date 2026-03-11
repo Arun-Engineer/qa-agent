@@ -30,6 +30,9 @@ from src.api.middleware.auth import AuthMiddleware
 from src.api.routes import sessions, runs, environments
 from src.api.dependencies import get_store, get_env_registry
 
+from monitoring.logging_config import setup_logging
+setup_logging()
+
 BASE_DOMAIN = os.getenv("BASE_DOMAIN", "lvh.me")
 SESSION_SECRET = os.getenv("SESSION_SECRET", "dev-only-change-me")
 DEFAULT_TENANT = os.getenv("DEFAULT_TENANT", "local")
