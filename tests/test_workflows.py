@@ -165,7 +165,10 @@ class TestUiTestWorkflow:
         wf = UiTestWorkflow()
         # When understanding_layer is not available, falls back to basic URL extraction
         result = wf._basic_enrich("Test https://example.com/login", {})
+<<<<<<< HEAD
         # _basic_enrich now extracts base URL (scheme://host) without path
+=======
+>>>>>>> origin/main
         assert os.environ.get("APP_BASE_URL") == "https://example.com"
 
 
