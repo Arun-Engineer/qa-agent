@@ -64,6 +64,13 @@ class UiTestWorkflow(BaseWorkflow):
     def _basic_enrich(self, spec: str, context: Dict[str, Any]) -> str:
         """Fallback: extract URL and set env vars."""
         import re
+
+        from urllib.parse import urlparse
+        match = re.search(r"https?://[^\s)]+", spec)
+        if match:
+            raw_url = match.group(0).rstrip(".,;")
+            parsed = urlparse(raw_url)
+            base_url = f"{parsed.scheme}://{parsed.netloc}"
         match = re.search(r"https?://[^\s)]+", spec)
         if match:
             base_url = match.group(0).rstrip(".,;")

@@ -12,6 +12,7 @@ from agent.core.base_workflow import BaseWorkflow
 
 
 # Lazy imports to avoid circular deps
+
 _REGISTRY: Dict[str, Type[BaseWorkflow]] = {}
 
 
@@ -21,11 +22,16 @@ def _ensure_registry():
     from agent.workflows.api_test import ApiTestWorkflow
     from agent.workflows.ui_test import UiTestWorkflow
     from agent.workflows.spec_review import SpecReviewWorkflow
+    from agent.workflows.visual_qa import VisualQaWorkflow
 
     _REGISTRY["api_test"] = ApiTestWorkflow
     _REGISTRY["ui_test"] = UiTestWorkflow
     _REGISTRY["spec_review"] = SpecReviewWorkflow
+
+    _REGISTRY["visual_qa"] = VisualQaWorkflow
+    # Legacy aliases
     # Legacy alias
+
     _REGISTRY["generate_testcases"] = ApiTestWorkflow
     _REGISTRY["default"] = ApiTestWorkflow
 

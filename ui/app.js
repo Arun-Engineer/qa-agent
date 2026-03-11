@@ -373,6 +373,10 @@ async function loadMetrics() {
 }
 
 function computeMetricsFromRuns(runs) {
+  // Apply dashboard filters
+  runs = filterRunsByCategory(runs, dashFilterCategory);
+  runs = filterRunsByPeriod(runs, dashFilterPeriod);
+
   const list = Array.isArray(runs) ? runs : [];
   const total_runs = list.length;
 
@@ -415,6 +419,7 @@ function applyMetricsToUI(data) {
 function renderChart(data) {
   if (typeof Chart === "undefined") return;
   const ctx = document.getElementById("metricsChart");
+  if (ctx) ctx.style.display = (data.total_passed || data.total_failed) ? "block" : "none";
   if (!ctx) return;
   if (chart) chart.destroy();
 
@@ -471,6 +476,7 @@ async function runAgentWithSpecId(spec_id) {
     body: JSON.stringify({
       spec_id,
       task_type: "generate_testcases",
+      workflow_name: (document.getElementById("workflowSelect")||{}).value || "api_test",
       options: {},
       use_rag: true,
       html: false,
@@ -661,9 +667,12 @@ async function loadRuns() {
     const container = document.getElementById("runsList");
     container.innerHTML = "";
 
-    const items = (runs || []).slice().reverse();
+    _allRunsCache = runs || [];
+    var filtered = filterRunsByCategory(_allRunsCache, histFilterCategory);
+    filtered = filterRunsByPeriod(filtered, histFilterPeriod);
+    var items = filtered.slice().reverse();
     if (!items.length) {
-      container.innerHTML = `<div class="card"><div class="muted">No runs yet.</div></div>`;
+      container.innerHTML = '<div class="card"><div class="muted">No runs match filters.</div></div>';
       return;
     }
 
@@ -1245,3 +1254,116 @@ async function testLLMConnection() {
 window.onLLMProviderChange = onLLMProviderChange;
 window.saveLLMProvider = saveLLMProvider;
 window.testLLMConnection = testLLMConnection;
+
+/* ═══ Dashboard & History Filters ═══ */
+var dashFilterCategory = "overall";
+var dashFilterPeriod = "all";
+var histFilterCategory = "all";
+var histFilterPeriod = "all";
+
+function setFilter() {
+  var cat = document.getElementById("dashCategory");
+  var per = document.getElementById("dashPeriod");
+  if (cat) dashFilterCategory = cat.value;
+  if (per) dashFilterPeriod = per.value;
+  loadMetrics();
+}
+
+function setHistoryFilter() {
+  var cat = document.getElementById("histCategory");
+  var per = document.getElementById("histPeriod");
+  if (cat) histFilterCategory = cat.value;
+  if (per) histFilterPeriod = per.value;
+  applyHistoryFilters();
+}
+
+function filterRunsByPeriod(runs, period) {
+  if (period === "all") return runs;
+  var now = new Date();
+  var cutoff;
+  if (period === "daily") { cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate()); }
+  else if (period === "weekly") { cutoff = new Date(now); cutoff.setDate(now.getDate() - 7); }
+  else if (period === "monthly") { cutoff = new Date(now); cutoff.setMonth(now.getMonth() - 1); }
+  else return runs;
+  return runs.filter(function(r) {
+    var ts = new Date(r.timestamp || r.created_at || 0);
+    return ts >= cutoff;
+  });
+}
+
+function filterRunsByCategory(runs, category) {
+  if (category === "overall" || category === "all") return runs;
+  return runs.filter(function(r) {
+    var goal = (r.goal || "").toLowerCase();
+    var tags = (r.tags || r.category || "").toLowerCase();
+    return goal.indexOf(category) >= 0 || tags.indexOf(category) >= 0;
+  });
+}
+
+var _allRunsCache = [];
+
+function applyHistoryFilters() {
+  var filtered = _allRunsCache.slice();
+  filtered = filterRunsByCategory(filtered, histFilterCategory);
+  filtered = filterRunsByPeriod(filtered, histFilterPeriod);
+  renderRunsList(filtered);
+}
+
+function renderRunsList(items) {
+  var container = document.getElementById("runsList");
+  if (!container) return;
+  container.innerHTML = "";
+  items = (items || []).slice().reverse();
+  if (!items.length) {
+    container.innerHTML = '<div class="card"><div class="muted">No runs match the current filters.</div></div>';
+    return;
+  }
+  for (var i = 0; i < items.length; i++) {
+    var r = items[i];
+    var failed = r.failed || 0;
+    container.innerHTML += '<div class="card" style="margin-bottom:10px">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center">' +
+        '<div><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.5px">Execution</div>' +
+        '<div style="font-weight:800;margin-top:2px">' + escapeHtml(r.goal || "Run") + '</div></div>' +
+        '<div class="' + (failed > 0 ? 'pill pill-fail' : 'pill pill-pass') + '">' + (failed > 0 ? 'FAILED' : 'PASSED') + '</div>' +
+      '</div>' +
+      '<div class="metrics" style="margin-top:10px">' +
+        '<div class="metric"><div class="metric-label">Passed</div><div class="metric-value good">' + (r.passed || 0) + '</div></div>' +
+        '<div class="metric"><div class="metric-label">Failed</div><div class="metric-value bad">' + (r.failed || 0) + '</div></div>' +
+        '<div class="metric"><div class="metric-label">When</div><div class="metric-value">' + relTime(r.timestamp) + '</div><div class="metric-sub">' + fmtTs(r.timestamp) + '</div></div>' +
+      '</div>' +
+      '<div style="margin-top:10px">' + artifactButtons(pickArtifacts(r)) + '</div>' +
+    '</div>';
+  }
+}
+
+/* ═══ Token Tracking ═══ */
+var tokenStats = { total: 0, prompt: 0, completion: 0 };
+
+function trackTokens(usage) {
+  if (!usage) return;
+  tokenStats.total += (usage.total_tokens || 0);
+  tokenStats.prompt += (usage.prompt_tokens || 0);
+  tokenStats.completion += (usage.completion_tokens || 0);
+  updateTokenCard();
+}
+
+function updateTokenCard() {
+  var el;
+  el = document.getElementById("dashTotalTokens");
+  if (el) el.textContent = tokenStats.total.toLocaleString();
+  el = document.getElementById("dashPromptTokens");
+  if (el) el.textContent = tokenStats.prompt.toLocaleString();
+  el = document.getElementById("dashCompletionTokens");
+  if (el) el.textContent = tokenStats.completion.toLocaleString();
+  el = document.getElementById("dashEstCost");
+  if (el) {
+    // GPT-4o-mini pricing: ~$0.15/1M input, ~$0.60/1M output
+    var cost = (tokenStats.prompt * 0.00000015) + (tokenStats.completion * 0.0000006);
+    el.textContent = "$" + cost.toFixed(4);
+  }
+}
+
+window.setFilter = setFilter;
+window.setHistoryFilter = setHistoryFilter;
+window.trackTokens = trackTokens;
