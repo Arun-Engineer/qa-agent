@@ -1,62 +1,62 @@
-# deploy/Dockerfile — Multi-stage production build for AI QA Platform
-# Stage 1: Build dependencies
-# Stage 2: Slim runtime image
+# ═══════════════════════════════════════════════════
+#  AI QA Platform — Production Dockerfile
+#  Target: AWS EC2 (t2.micro / t3.micro free tier)
+#  DB: SQLite (data/ volume persisted)
+# ═══════════════════════════════════════════════════
 
-# ═══════════════════════════════════
-# Stage 1: Build
-# ═══════════════════════════════════
-FROM python:3.11-slim AS builder
+FROM python:3.11-slim AS base
 
-WORKDIR /build
-
-# System deps for building Python packages
+# System deps for Playwright, bcrypt, SQLite
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
+    curl gcc g++ libffi-dev libssl-dev \
+    sqlite3 \
+    # Playwright system deps
+    libnss3 libatk-bridge2.0-0 libdrm2 libxkbcommon0 \
+    libgbm1 libpango-1.0-0 libcairo2 libasound2 \
+    libxshmfence1 libxrandr2 libxcomposite1 libxdamage1 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
-
-# ═══════════════════════════════════
-# Stage 2: Runtime
-# ═══════════════════════════════════
-FROM python:3.11-slim
-
-LABEL maintainer="AI QA Platform"
-LABEL version="5.0.0"
+# App user (non-root)
+RUN useradd -m -s /bin/bash appuser
 
 WORKDIR /app
 
-# System deps for runtime (Playwright browsers, etc.)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+# Install Python deps first (cache layer)
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir gunicorn uvicorn[standard]
 
-# Copy Python packages from builder
-COPY --from=builder /install /usr/local
+# Install Playwright browsers
+RUN pip install --no-cache-dir playwright && \
+    playwright install chromium && \
+    playwright install-deps chromium
 
 # Copy application code
 COPY . .
 
-# Create data directories
-RUN mkdir -p data/logs data/chroma data/runs
+# Create data directory for SQLite (will be volume-mounted)
+RUN mkdir -p /app/data /app/logs /app/reports && \
+    chown -R appuser:appuser /app
 
-# Non-root user for security
-RUN groupadd -r aiqa && useradd -r -g aiqa -d /app aiqa \
-    && chown -R aiqa:aiqa /app/data
-USER aiqa
+# Config directory
+RUN mkdir -p /app/config && \
+    chown -R appuser:appuser /app/config
 
-# Environment defaults (override via ECS task def or docker-compose)
-ENV APP_ENV=production \
-    PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PORT=8000
+USER appuser
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:${PORT}/health || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
 
-EXPOSE ${PORT}
+EXPOSE 8000
 
-# Run with uvicorn
-CMD ["python", "-m", "uvicorn", "asgi:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+# Production server: gunicorn with uvicorn workers
+# 2 workers for t2.micro (1GB RAM), scale up for larger instances
+CMD ["gunicorn", "asgi:app", \
+     "-k", "uvicorn.workers.UvicornWorker", \
+     "--bind", "0.0.0.0:8000", \
+     "--workers", "2", \
+     "--timeout", "120", \
+     "--access-logfile", "-", \
+     "--error-logfile", "-"]

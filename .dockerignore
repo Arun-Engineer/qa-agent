@@ -1,23 +1,48 @@
-# .dockerignore
+# Git
 .git
-.github
-.venv
+.gitignore
+
+# Python
 __pycache__
 *.pyc
-.env
-.env.*
+*.pyo
+.venv
+venv
+env
+*.egg-info
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# Data (mounted as volume, not baked in)
 data/
 logs/
 reports/
 *.db
-*.sqlite
-*.sqlite3
-node_modules
-.pytest_cache
-.ruff_cache
-htmlcov
-.coverage
-*.egg-info
-.backups/
+
+# Environment (secrets — never bake into image)
+.env
+
+# Deploy artifacts (not needed inside container)
+deploy/certbot
 deploy/docker-compose.yml
+
+# Dev files
+*.xlsx
+*.pdf
+*.docx
+folder_tree.txt
+stress/
 tests/
+ruff.toml
+*.md
+!requirements.txt
+
+# Temp files from patches
+apply_*.py
+cleanup_*.py
+check_*.py
+.backups/
