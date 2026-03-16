@@ -1,22 +1,107 @@
 {% extends "base.html" %}
 {% block content %}
-  <h1>Create account</h1>
+  <h1>Create Account</h1>
 
-  <form method="post" action="/signup">
-    <label>Email</label>
-    <input name="email" type="email" placeholder="you@example.com" required />
-
-    <label>Password</label>
-    <div class="field">
-      <input id="signup_password" name="password" type="password" placeholder="At least 8 characters" required />
-      <button type="button"
-              class="toggle-pass"
-              data-toggle="password"
-              data-target="signup_password"
-              aria-label="Show/hide password"></button>
+  <form method="post" action="/signup" id="signupForm">
+    <!-- Step indicator -->
+    <div class="step-indicator">
+      <div class="step active" id="step-ind-1"><span>1</span><small>Account</small></div>
+      <div class="step-line" id="step-line-1"></div>
+      <div class="step" id="step-ind-2"><span>2</span><small>Organisation</small></div>
     </div>
 
-    <button type="submit">Sign up</button>
+    <!-- STEP 1: Account Details -->
+    <div class="form-step" id="step1">
+      <label>Full Name</label>
+      <input name="full_name" type="text" placeholder="John Doe" required />
+
+      <label>Work Email</label>
+      <input name="email" type="email" placeholder="you@company.com" required id="signupEmail" />
+
+      <label>Password</label>
+      <div class="field">
+        <input id="signup_password" name="password" type="password" placeholder="At least 8 characters" required minlength="8" />
+        <button type="button"
+                class="toggle-pass"
+                data-toggle="password"
+                data-target="signup_password"
+                aria-label="Show/hide password"></button>
+      </div>
+
+      <label>Confirm Password</label>
+      <div class="field">
+        <input id="signup_confirm" name="confirm_password" type="password" placeholder="Re-enter password" required minlength="8" />
+        <button type="button"
+                class="toggle-pass"
+                data-toggle="password"
+                data-target="signup_confirm"
+                aria-label="Show/hide password"></button>
+      </div>
+
+      <button type="button" class="btn-next" onclick="goStep2()">
+        Next &mdash; Organisation Details
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
+
+    <!-- STEP 2: Organisation Details -->
+    <div class="form-step hidden" id="step2">
+      <div class="join-toggle">
+        <button type="button" class="toggle-opt active" id="togNew" onclick="toggleJoinMode('new')">Create New Org</button>
+        <button type="button" class="toggle-opt" id="togJoin" onclick="toggleJoinMode('join')">Join Existing</button>
+      </div>
+
+      <!-- New org fields -->
+      <div id="newOrgFields">
+        <label>Organisation Name</label>
+        <input name="org_name" type="text" placeholder="Acme Corporation" id="orgName" />
+
+        <label>Organisation Slug <span class="hint">(URL identifier)</span></label>
+        <input name="org_slug" type="text" placeholder="acme-corp" id="orgSlug" pattern="[a-z0-9\-]+" />
+        <div class="field-hint" id="slugHint">Used as: <strong id="slugPreview">your-org</strong>.aiqaplatform.com</div>
+
+        <label>Industry <span class="hint">(optional)</span></label>
+        <select name="industry" id="orgIndustry">
+          <option value="">Select industry...</option>
+          <option value="technology">Technology / SaaS</option>
+          <option value="fintech">Financial Services / Fintech</option>
+          <option value="healthcare">Healthcare / Pharma</option>
+          <option value="ecommerce">E-Commerce / Retail</option>
+          <option value="telecom">Telecom / Media</option>
+          <option value="manufacturing">Manufacturing / IoT</option>
+          <option value="government">Government / Public Sector</option>
+          <option value="education">Education / EdTech</option>
+          <option value="other">Other</option>
+        </select>
+
+        <label>Team Size <span class="hint">(optional)</span></label>
+        <select name="team_size" id="orgTeamSize">
+          <option value="">Select team size...</option>
+          <option value="1-5">1-5 members</option>
+          <option value="6-20">6-20 members</option>
+          <option value="21-50">21-50 members</option>
+          <option value="51-200">51-200 members</option>
+          <option value="200+">200+ members</option>
+        </select>
+      </div>
+
+      <!-- Join existing org fields -->
+      <div id="joinOrgFields" class="hidden">
+        <label>Invite Code</label>
+        <input name="invite_code" type="text" placeholder="Paste invite code from your admin" id="inviteCode" />
+        <div class="field-hint">Ask your organisation admin for an invite code or link.</div>
+      </div>
+
+      <input type="hidden" name="join_mode" id="joinMode" value="new" />
+
+      <div class="step2-actions">
+        <button type="button" class="btn-back" onclick="goStep1()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+          Back
+        </button>
+        <button type="submit">Create Account</button>
+      </div>
+    </div>
   </form>
 
   {% if error_html %}
@@ -26,4 +111,117 @@
   <div class="muted">
     Already have an account? <a href="/login">Login</a>
   </div>
+
+  <style>
+    /* Step indicator */
+    .step-indicator { display: flex; align-items: center; justify-content: center; gap: 0; margin-bottom: 20px; }
+    .step { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+    .step span { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 700; border: 1.5px solid rgba(255,255,255,0.15); color: rgba(200,215,240,0.35); background: transparent; transition: all 0.3s; }
+    .step small { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: rgba(200,215,240,0.25); transition: color 0.3s; }
+    .step.active span { border-color: #9cc3ff; color: #fff; background: rgba(120,170,255,0.15); box-shadow: 0 0 12px rgba(120,170,255,0.15); }
+    .step.active small { color: #9cc3ff; }
+    .step.done span { border-color: #22c55e; color: #fff; background: rgba(34,197,94,0.15); }
+    .step-line { width: 40px; height: 1.5px; background: rgba(255,255,255,0.10); margin: 0 8px; margin-bottom: 14px; transition: background 0.3s; }
+    .step-line.active { background: #9cc3ff; }
+
+    /* Join toggle */
+    .join-toggle { display: flex; gap: 0; margin-bottom: 14px; border-radius: 10px; overflow: hidden; border: 1px solid rgba(255,255,255,0.10); }
+    .toggle-opt { flex: 1; padding: 10px; border: none; background: transparent; color: rgba(200,215,240,0.40); font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.3s; letter-spacing: 0.5px; }
+    .toggle-opt.active { background: rgba(120,170,255,0.10); color: #9cc3ff; }
+    .toggle-opt:hover:not(.active) { background: rgba(255,255,255,0.03); color: rgba(200,215,240,0.55); }
+
+    /* Select dropdown */
+    select { width: 100%; max-width: 100%; padding: 12px; background: rgba(10, 14, 25, 0.35); border: 1px solid rgba(255,255,255,0.18); border-radius: 12px; color: #e8eefc; font-family: inherit; font-size: 14px; outline: none; transition: all 0.3s; appearance: none; cursor: pointer; }
+    select:focus { border-color: rgba(120, 170, 255, 0.55); box-shadow: 0 0 0 3px rgba(80,140,255,0.15); }
+    select option { background: #0a1628; color: #e8eefc; }
+
+    .hint { font-weight: 400; color: rgba(200,215,240,0.30); font-size: 10px; text-transform: none; letter-spacing: 0; }
+    .field-hint { font-size: 11px; color: rgba(200,215,240,0.30); margin-top: 5px; }
+    .field-hint strong { color: #9cc3ff; font-weight: 600; }
+
+    .hidden { display: none !important; }
+
+    .btn-next { width: 100%; max-width: 100%; padding: 12px; border: none; border-radius: 12px; font-family: inherit; font-size: 14px; font-weight: 700; color: #fff; cursor: pointer; background: linear-gradient(90deg, #2b6cff, #3a86ff); margin-top: 14px; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.3s; }
+    .btn-next:hover { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(59,130,246,0.3); }
+
+    .btn-back { padding: 12px 18px; border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; font-family: inherit; font-size: 13px; font-weight: 600; color: rgba(200,215,240,0.50); cursor: pointer; background: transparent; display: flex; align-items: center; gap: 4px; transition: all 0.3s; }
+    .btn-back:hover { border-color: rgba(120,170,255,0.35); color: #9cc3ff; }
+
+    .step2-actions { display: flex; gap: 10px; margin-top: 18px; }
+    .step2-actions button[type="submit"] { flex: 1; }
+
+    .form-step { animation: stepFade 0.35s ease; }
+    @keyframes stepFade { from { opacity: 0; transform: translateX(12px); } to { opacity: 1; transform: translateX(0); } }
+  </style>
+
+  <script>
+    (function() {
+      var emailInput = document.getElementById('signupEmail');
+      var slugInput = document.getElementById('orgSlug');
+      var nameInput = document.getElementById('orgName');
+      var slugPreview = document.getElementById('slugPreview');
+
+      // Auto-generate slug from org name
+      if (nameInput && slugInput) {
+        nameInput.addEventListener('input', function() {
+          var val = (nameInput.value || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+          slugInput.value = val;
+          if (slugPreview) slugPreview.textContent = val || 'your-org';
+        });
+        slugInput.addEventListener('input', function() {
+          if (slugPreview) slugPreview.textContent = slugInput.value || 'your-org';
+        });
+      }
+
+      // Auto-detect org domain from email
+      if (emailInput && nameInput) {
+        emailInput.addEventListener('blur', function() {
+          var email = (emailInput.value || '');
+          var domain = email.split('@')[1];
+          if (domain && !nameInput.value) {
+            var orgGuess = domain.split('.')[0];
+            orgGuess = orgGuess.charAt(0).toUpperCase() + orgGuess.slice(1);
+            nameInput.value = orgGuess;
+            nameInput.dispatchEvent(new Event('input'));
+          }
+        });
+      }
+    })();
+
+    function goStep2() {
+      var pw = document.getElementById('signup_password').value;
+      var confirm = document.getElementById('signup_confirm').value;
+      var email = document.getElementById('signupEmail').value;
+      var name = document.querySelector('[name="full_name"]').value;
+
+      if (!name.trim()) { alert('Please enter your name.'); return; }
+      if (!email.trim() || email.indexOf('@') === -1) { alert('Please enter a valid email.'); return; }
+      if (pw.length < 8) { alert('Password must be at least 8 characters.'); return; }
+      if (pw !== confirm) { alert('Passwords do not match.'); return; }
+
+      document.getElementById('step1').classList.add('hidden');
+      document.getElementById('step2').classList.remove('hidden');
+      document.getElementById('step-ind-1').classList.remove('active');
+      document.getElementById('step-ind-1').classList.add('done');
+      document.getElementById('step-ind-2').classList.add('active');
+      document.getElementById('step-line-1').classList.add('active');
+    }
+
+    function goStep1() {
+      document.getElementById('step2').classList.add('hidden');
+      document.getElementById('step1').classList.remove('hidden');
+      document.getElementById('step-ind-2').classList.remove('active');
+      document.getElementById('step-ind-1').classList.remove('done');
+      document.getElementById('step-ind-1').classList.add('active');
+      document.getElementById('step-line-1').classList.remove('active');
+    }
+
+    function toggleJoinMode(mode) {
+      document.getElementById('joinMode').value = mode;
+      document.getElementById('togNew').classList.toggle('active', mode === 'new');
+      document.getElementById('togJoin').classList.toggle('active', mode === 'join');
+      document.getElementById('newOrgFields').classList.toggle('hidden', mode !== 'new');
+      document.getElementById('joinOrgFields').classList.toggle('hidden', mode !== 'join');
+    }
+  </script>
 {% endblock %}

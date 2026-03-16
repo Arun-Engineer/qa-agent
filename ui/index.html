@@ -56,7 +56,7 @@
       <div class="rv-dropdown hidden" id="rvDropdown">
         <div class="rv-dd-header">
           <div class="rv-dd-avatar" id="rvDdAvatar">?</div>
-          <div><div class="rv-dd-name" id="rvDdName">User</div><div class="rv-dd-email" id="rvDdEmail">user@company.com</div></div>
+          <div><div class="rv-dd-name" id="rvDdName">User</div><div class="rv-dd-email" id="rvDdEmail"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="057076607745666a6875646b7c2b666a68">[email&#160;protected]</a></div></div>
         </div>
         <div class="rv-dd-divider"></div>
         <div class="rv-dd-row"><span class="rv-dd-label">Tenant</span><span id="rvDdTenant">-</span></div>
@@ -180,22 +180,7 @@
         <div id="askResult"></div>
 
         </div>
-      </div>
-      <div class="rv-neon-avatar" id="rvNeonAvatar" onclick="toggleRvDropdown()">?</div>
-      <div class="rv-dropdown hidden" id="rvDropdown">
-        <div class="rv-dd-header">
-          <div class="rv-dd-avatar" id="rvDdAvatar">?</div>
-          <div><div class="rv-dd-name" id="rvDdName">User</div><div class="rv-dd-email" id="rvDdEmail">user@company.com</div></div>
-        </div>
-        <div class="rv-dd-divider"></div>
-        <div class="rv-dd-row"><span class="rv-dd-label">Tenant</span><span id="rvDdTenant">-</span></div>
-        <div class="rv-dd-row"><span class="rv-dd-label">Role</span><span class="rv-dd-badge" id="rvDdRole">member</span></div>
-        <div class="rv-dd-row"><span class="rv-dd-label">Status</span><span><span class="rv-dot on"></span> Active</span></div>
 
-      </div>
-    </div>
-
-      <!-- RUNS -->
       <div id="runs" class="hidden">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:10px">
           <h2 style="margin:0">Execution History</h2>
@@ -224,80 +209,7 @@
         <div id="runsList"></div>
       </div>
 
-      <!-- ADMIN -->
-      <div id="admin" class="hidden">
-        <div class="admin-header">
-          <div>
-            <h2 style="margin:0;">Admin Console</h2>
-            <div class="muted" style="margin-top:6px;">Manage tenant members/invites, LLM settings, and platform configuration.</div>
-    <div class="main">
-      <!-- DASHBOARD -->
-      <div id="dashboard">
-        <h2>System Analytics</h2>
-        <div style="margin-bottom:20px;">
-          <span style="color:#22c55e;">&#9679;</span> System Online
-        </div>
 
-        <div class="cards">
-          <div class="card"><div class="rv-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div><p>Total Runs</p><h3 id="totalRuns"></h3></div>
-          <div class="card"><div class="rv-card-icon" style="color:rgba(34,197,94,0.4)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div><p>Pass Rate</p><h3 id="passRate"></h3></div>
-          <div class="card"><div class="rv-card-icon" style="color:rgba(16,185,129,0.4)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div><p>Total Passed</p><h3 id="totalPassed"></h3></div>
-          <div class="card"><div class="rv-card-icon" style="color:rgba(239,68,68,0.4)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div><p>Total Failed</p><h3 id="totalFailed"></h3></div>
-        </div>
-
-        <!-- LLM Status (read-only, auto-checked) -->
-        <div class="card" id="dashLlmCard">
-          <div class="rv-section-title">
-            LLM Status
-            <div class="rv-help" tabindex="0">?
-              <div class="rv-tooltip">Shows the current LLM provider status. Checked automatically on page load. <strong>Green</strong> = API key valid &amp; model responding. <strong>Red</strong> = key missing or connection failed.</div>
-            </div>
-          </div>
-          <div class="rv-llm-grid">
-            <div class="rv-llm-item"><div class="rv-llm-label">Provider</div><div class="rv-llm-val" id="dashLlmProvider">-</div></div>
-            <div class="rv-llm-item"><div class="rv-llm-label">Model</div><div class="rv-llm-val" id="dashLlmModel">-</div></div>
-            <div class="rv-llm-item"><div class="rv-llm-label">Status</div><div class="rv-llm-val" id="dashLlmStatus"><span class="rv-dot"></span> <span>Checking...</span></div></div>
-          </div>
-        </div>
-
-        <canvas id="metricsChart"></canvas>
-      </div>
-
-      <!-- EXECUTOR -->
-      <div id="executor" class="hidden">
-        <h2>Execute User Story</h2>
-        <div class="upload-row">
-          <label class="file-pill">
-            <input type="file" id="specFile" accept=".pdf,.docx,.txt,.md" />
-            <span>Upload spec (PDF / DOCX / TXT / MD)</span>
-          </label>
-          <div id="specFileName" class="muted" style="margin-top:8px;">No file selected</div>
-          <button type="button" class="btn btn-ghost btn-sm" id="clearSpecFile" style="margin-top:10px;">Clear file</button>
-          <div class="muted" style="margin-top:6px;">Tip: upload OR paste below. If both are provided, upload wins.</div>
-        </div>
-        <textarea id="specInput" placeholder="Paste user story..."></textarea>
-        <button onclick="runSpec()">Execute</button>
-        <div id="executionResult"></div>
-      </div>
-
-      <!-- ASK QA -->
-      <div id="ask" class="hidden">
-        <h2>Ask QA Architect</h2>
-        <input id="askInput" placeholder="What is functional testing?"/>
-        <div class="ask-actions">
-          <button onclick="askQA()" id="askBtn">Ask</button>
-          <button type="button" class="btn-alt" onclick="clearAsk()" id="clearAskBtn">Clear</button>
-        </div>
-        <div id="askResult"></div>
-      </div>
-
-      <!-- RUNS -->
-      <div id="runs" class="hidden">
-        <h2>Execution History</h2>
-        <div id="runsList"></div>
-      </div>
-
-      <!-- ADMIN -->
       <div id="admin" class="hidden">
         <div class="admin-header">
           <div>
@@ -310,8 +222,6 @@
           <div class="admin-card-title">Current Access</div>
           <div id="adminMe" class="admin-kv"></div>
         </div>
-
-        <!-- LLM / AI Configuration (editable) -->
         <div class="card admin-card" style="margin-top:16px;" id="llmConfigCard">
           <div class="admin-card-title" style="display:flex;align-items:center;gap:8px;">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15"/></svg>
@@ -331,6 +241,22 @@
             </div>
           </div>
           <div id="llmStatus" class="muted" style="margin-top:10px;"></div>
+          <!-- Temperature Control -->
+          <div style="margin-top:14px;">
+            <label class="admin-label" style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+              Temperature
+              <span class="muted" style="font-weight:400;font-size:11px;">(lower = deterministic, higher = creative)</span>
+            </label>
+            <div style="display:flex;align-items:center;gap:12px;">
+              <input type="range" id="llmTemperature" min="0" max="100" value="20" style="flex:1;accent-color:var(--primary);" oninput="document.getElementById('tempVal').textContent=(this.value/100).toFixed(2)">
+              <span id="tempVal" style="font-weight:700;min-width:40px;font-size:14px;">0.20</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:2px;">
+              <span>0.0 Precise</span>
+              <span>0.5 Balanced</span>
+              <span>1.0 Creative</span>
+            </div>
+          </div>
           <div class="rv-config-actions">
             <button class="btn btn-primary" onclick="saveLLMProvider()">Save Configuration</button>
             <button class="btn" onclick="testLLMConnection()">Test Connection</button>
@@ -339,79 +265,17 @@
         </div>
 
 
-        <div class="card admin-card">
-          <div class="admin-card-title">Current Access</div>
-          <div id="adminMe" class="admin-kv"></div>
-        </div>
 
-        <!-- LLM / AI Configuration (editable) -->
-        <div class="card admin-card" style="margin-top:16px;" id="llmConfigCard">
+        
+        <!-- Pending Signup Approvals -->
+        <div class="card admin-card" style="margin-top:16px;border-left:3px solid #f59e0b;" id="pendingApprovalsCard">
           <div class="admin-card-title" style="display:flex;align-items:center;gap:8px;">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15"/></svg>
-            LLM / AI Configuration
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            Pending Approvals
+            <span id="pendingBadge" style="display:none;background:#f59e0b;color:#000;font-size:11px;font-weight:800;padding:2px 7px;border-radius:10px">0</span>
           </div>
-          <div class="rv-config-grid">
-            <div class="rv-config-field">
-              <label for="llmProvider">Provider</label>
-              <select id="llmProvider" onchange="onLLMProviderChange()">
-                <option value="anthropic">Anthropic (Claude)</option>
-                <option value="openai">OpenAI (GPT)</option>
-              </select>
-            </div>
-            <div class="rv-config-field">
-              <label for="llmModel">Model</label>
-              <select id="llmModel"></select>
-            </div>
-          </div>
-          <div id="llmStatus" class="muted" style="margin-top:10px;"></div>
-          <div class="rv-config-actions">
-            <button class="btn btn-primary" onclick="saveLLMProvider()">Save Configuration</button>
-            <button class="btn" onclick="testLLMConnection()">Test Connection</button>
-          </div>
-          <div id="llmTestResult" style="display:none;margin-top:10px;padding:10px 14px;border-radius:12px;font-size:13px;"></div>
+          <div id="pendingList"><div class="muted">Loading...</div></div>
         </div>
-
-        <div class="admin-grid">
-          <!-- Tenant Admin -->
-          <div class="card admin-card" id="tenantAdminCard">
-            <div class="admin-card-title">Tenant Admin</div>
-            <div class="admin-form">
-              <div class="admin-field">
-                <label class="admin-label" for="inviteEmail">Invite email</label>
-                <input id="inviteEmail" class="admin-input" placeholder="name@company.com" />
-              </div>
-              <div class="admin-field">
-                <label class="admin-label" for="inviteRole">Role</label>
-                <select id="inviteRole" class="admin-select">
-                  <option value="member">member</option>
-                  <option value="viewer">viewer</option>
-                  <option value="admin">admin</option>
-                  <option value="owner">owner</option>
-                </select>
-              </div>
-              <div class="admin-field admin-actions">
-                <label class="admin-label" style="opacity:0;">Action</label>
-                <button class="btn btn-primary" onclick="createInvite()">Invite / Add</button>
-              </div>
-            </div>
-            <div id="inviteResult" class="muted" style="margin-top:10px;"></div>
-            <div class="admin-section">
-              <div class="admin-section-title">Members</div>
-              <div id="membersList" class="admin-list"></div>
-            </div>
-            <div class="admin-section">
-              <div class="admin-section-title">Invites</div>
-              <div id="invitesList" class="admin-list"></div>
-            </div>
-            <div class="admin-section">
-              <div class="rv-audit-header">
-                <div class="admin-section-title">Audit Logs</div>
-                <button class="rv-btn-export" onclick="exportAuditLogs()">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                  Export
-                </button>
-              </div>
-              <div id="auditList" class="admin-list"></div>
 
         <div class="admin-grid">
           <!-- Tenant Admin -->
@@ -503,53 +367,6 @@
       </div>
 
 
-          <!-- Platform Admin -->
-          <div class="card admin-card" id="platformAdminCard">
-            <div class="admin-card-title">Platform Admin (Super Admin)</div>
-            <div class="admin-form admin-form-2">
-              <div class="admin-field">
-                <label class="admin-label" for="tenantSlug">Tenant slug</label>
-                <input id="tenantSlug" class="admin-input" placeholder="acme" />
-              </div>
-              <div class="admin-field">
-                <label class="admin-label" for="tenantName">Tenant name</label>
-                <input id="tenantName" class="admin-input" placeholder="Acme Corp" />
-              </div>
-              <div class="admin-field admin-actions">
-                <label class="admin-label" style="opacity:0;">Action</label>
-                <button class="btn btn-primary" onclick="createTenant()">Create Tenant</button>
-              </div>
-            </div>
-            <div class="admin-form" style="margin-top:12px;">
-              <div class="admin-field">
-                <label class="admin-label" for="platformEmail">User email</label>
-                <input id="platformEmail" class="admin-input" placeholder="user@company.com" />
-              </div>
-              <div class="admin-field">
-                <label class="admin-label" for="platformRole">Platform role</label>
-                <select id="platformRole" class="admin-select">
-                  <option value="none">none</option>
-                  <option value="support">support</option>
-                  <option value="billing">billing</option>
-                  <option value="super_admin">super_admin</option>
-                </select>
-              </div>
-              <div class="admin-field admin-actions">
-                <label class="admin-label" style="opacity:0;">Action</label>
-                <button class="btn btn-primary" onclick="grantPlatformRole()">Grant Role</button>
-              </div>
-            </div>
-            <div id="platformResult" class="muted" style="margin-top:10px;"></div>
-            <div class="admin-section" style="margin-top:14px;">
-              <div class="admin-section-title">Tenants</div>
-              <div id="tenantsList" class="admin-list"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-
-      <!-- CONSOLE (admin/owner only) -->
       <div id="console" class="hidden">
         <h2 style="margin-bottom:6px;">System Console</h2>
         <div class="muted" style="margin-bottom:14px;">Live system events, API calls, and errors. Visible to admin and owner roles only.</div>
@@ -571,15 +388,14 @@
           </div>
         </div>
       </div>
+   
     </div>
   </div>
-
   <div class="footer-branding">
     AI QA Platform &bull; Powered by FastAPI &bull; AWS Fargate
   </div>
-
   <script src="/static/app.js"></script>
   <script src="/static/revamp.js"></script>
-
+<script src="/static/admin_users.js"></script>
 </body>
 </html>

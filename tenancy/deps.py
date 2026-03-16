@@ -15,6 +15,7 @@ SESSION_ACCOUNT = "account_id"
 SESSION_TENANT = "tenant_id"
 
 DEFAULT_TENANT_SLUG = os.getenv("DEFAULT_TENANT", "local")
+PLATFORM_GOD_EMAIL = os.getenv("PLATFORM_GOD_EMAIL", "").strip().lower()
 
 # Dev-friendly default. For corporate, set ALLOW_AUTO_JOIN=0 and rely on invites.
 ALLOW_AUTO_JOIN = os.getenv("ALLOW_AUTO_JOIN", "1") == "1"
@@ -40,7 +41,7 @@ def require_tenant(request: Request, db: Session = Depends(get_db)) -> Tenant:
 
     host = _host_only(request)
 
-    # ✅ DEV fallback for localhost usage
+    # DEV fallback for localhost usage
     if host in ("localhost", "127.0.0.1"):
         t = db.execute(select(Tenant).where(Tenant.slug == DEFAULT_TENANT_SLUG)).scalar_one_or_none()
         if not t:
@@ -66,17 +67,36 @@ def require_session(
     Accepts:
       - tenant session: account_id + tenant_id
       - legacy session: user_id (auto-migrates to account+membership and sets session)
+
+    SECURITY: Blocks pending/disabled memberships. Does NOT auto-create active
+    memberships if a pending one already exists.
     """
     host_tid = getattr(request.state, "tenant_id", None) or tenant.id
 
     aid = request.session.get(SESSION_ACCOUNT)
     tid = request.session.get(SESSION_TENANT)
 
-    # ✅ Already migrated tenant session
+    # Already migrated tenant session — re-verify membership status
     if aid and tid and str(tid) == str(host_tid):
-        return {"account_id": aid, "tenant_id": tid, "role": request.session.get("role")}
+        mem = db.execute(
+            select(Membership).where(
+                Membership.account_id == aid,
+                Membership.tenant_id == tid,
+            )
+        ).scalar_one_or_none()
 
-    # ✅ Legacy login session
+        if mem and mem.status == "pending":
+            request.session.clear()
+            raise HTTPException(status_code=403, detail="Account awaiting admin approval")
+
+        if mem and mem.status == "disabled":
+            request.session.clear()
+            raise HTTPException(status_code=403, detail="Account disabled in this org")
+
+        if mem and mem.status == "active":
+            return {"account_id": aid, "tenant_id": tid, "role": mem.role}
+
+    # Legacy login session
     uid = request.session.get(SESSION_USER)
     if not uid:
         raise HTTPException(status_code=401, detail="Login required")
@@ -98,29 +118,49 @@ def require_session(
         db.commit()
         db.refresh(acct)
 
-    # 2) ensure Membership
+    # 2) Check for ANY existing membership (including pending/disabled)
     mem = db.execute(
         select(Membership).where(
             Membership.tenant_id == tenant.id,
             Membership.account_id == acct.id,
-            Membership.status == "active",
         )
     ).scalar_one_or_none()
 
-    if not mem:
-        if not ALLOW_AUTO_JOIN:
-            raise HTTPException(status_code=403, detail="No access to this org (invite required).")
+    if mem:
+        # SECURITY: Block pending users
+        if mem.status == "pending":
+            request.session.clear()
+            raise HTTPException(status_code=403, detail="Account awaiting admin approval")
 
-        # first member becomes owner (dev-friendly)
+        if mem.status == "disabled":
+            request.session.clear()
+            raise HTTPException(status_code=403, detail="Account disabled in this org")
+
+        if mem.status != "active":
+            request.session.clear()
+            raise HTTPException(status_code=403, detail="Account not active")
+    else:
+        # No membership at all — user was removed or never approved
+        # Only auto-create for the very FIRST user (owner bootstrap)
         any_member = db.execute(
             select(Membership).where(Membership.tenant_id == tenant.id, Membership.status == "active")
         ).scalar_one_or_none()
 
-        role = "owner" if not any_member else "member"
-        mem = Membership(tenant_id=tenant.id, account_id=acct.id, role=role, status="active")
-        db.add(mem)
-        db.commit()
-        db.refresh(mem)
+        if not any_member:
+            # No members at all — this is the first user, make them owner
+            role = "owner"
+            mem = Membership(tenant_id=tenant.id, account_id=acct.id, role=role, status="active")
+            db.add(mem)
+            db.commit()
+            db.refresh(mem)
+        else:
+            # Tenant already has members — this user was removed or never approved
+            # Do NOT auto-create. Block access.
+            request.session.clear()
+            raise HTTPException(
+                status_code=403,
+                detail="Access revoked. Please contact your admin or sign up again."
+            )
 
     # 3) write back to session so future calls pass fast
     request.session[SESSION_ACCOUNT] = acct.id
@@ -150,7 +190,7 @@ def get_session_user(
         or "gpt-4o-mini"
     ).strip()
 
-    # Optional per-user overrides (keep empty if you’re not using them yet)
+    # Optional per-user overrides (keep empty if you're not using them yet)
     extra_envs = request.session.get("extra_envs") or []
     extra_perms = request.session.get("extra_perms") or []
 

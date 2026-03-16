@@ -1,3 +1,4 @@
+import os
 # tenancy/rbac.py
 from __future__ import annotations
 
@@ -13,6 +14,8 @@ from sqlalchemy import select
 from auth.db import get_db
 from tenancy.models import Account, Membership, PlatformRole, Tenant
 
+
+PLATFORM_GOD_EMAIL = os.getenv("PLATFORM_GOD_EMAIL", "").strip().lower()
 
 TENANT_ROLE_LEVEL = {"viewer": 1, "member": 2, "admin": 3, "owner": 4}
 PLATFORM_ROLE_LEVEL = {"none": 0, "support": 1, "billing": 2, "super_admin": 3}
@@ -137,14 +140,39 @@ def ensure_account_session(
     """
     If user logged in via legacy auth (user_id), auto-create/lookup Account + Membership
     and set session keys: account_id, tenant_id, role.
+
+    SECURITY: If user has a "pending" membership, raise 403 — do NOT auto-create active.
     """
-    # already tenant-mode session
+    # already tenant-mode session — but verify the membership is still active
     if request.session.get("account_id") and request.session.get("tenant_id"):
-        return {
-            "account_id": str(request.session["account_id"]),
-            "tenant_id": str(request.session["tenant_id"]),
-            "role": request.session.get("role") or "member",
-        }
+        aid = str(request.session["account_id"])
+        tid = str(request.session["tenant_id"])
+
+        # ── SECURITY: Re-verify membership status on every request ──
+        mem = db.execute(
+            select(Membership).where(
+                Membership.account_id == aid,
+                Membership.tenant_id == tid,
+            )
+        ).scalar_one_or_none()
+
+        if mem and mem.status == "pending":
+            # Clear the session — user shouldn't be logged in
+            request.session.clear()
+            raise HTTPException(status_code=403, detail="Account awaiting admin approval")
+
+        if mem and mem.status == "disabled":
+            request.session.clear()
+            raise HTTPException(status_code=403, detail="Account disabled in this org")
+
+        if mem and mem.status == "active":
+            return {
+                "account_id": aid,
+                "tenant_id": tid,
+                "role": mem.role or "member",
+            }
+
+        # If no membership found but session exists, fall through to re-create
 
     uid = request.session.get("user_id")
     if not uid:
@@ -173,6 +201,7 @@ def ensure_account_session(
         db.commit()
         db.refresh(acct)
 
+    # ── Check for ANY existing membership (including pending) ──
     mem = db.execute(
         select(Membership).where(
             Membership.account_id == acct.id,
@@ -180,17 +209,40 @@ def ensure_account_session(
         )
     ).scalar_one_or_none()
 
-    if not mem:
-        # first membership in tenant -> owner, otherwise member
-        existing = db.execute(select(Membership).where(Membership.tenant_id == tenant.id)).scalar_one_or_none()
-        role = "owner" if not existing else "member"
-        mem = Membership(tenant_id=tenant.id, account_id=acct.id, role=role, status="active")
-        db.add(mem)
-        db.commit()
-        db.refresh(mem)
+    if mem:
+        # ── SECURITY: Block pending users ──
+        if mem.status == "pending":
+            request.session.clear()
+            raise HTTPException(status_code=403, detail="Account awaiting admin approval")
 
-    if mem.status != "active":
-        raise HTTPException(status_code=403, detail="Account disabled in this org")
+        if mem.status == "disabled":
+            request.session.clear()
+            raise HTTPException(status_code=403, detail="Account disabled in this org")
+
+        if mem.status != "active":
+            request.session.clear()
+            raise HTTPException(status_code=403, detail="Account not active")
+    else:
+        # No membership at all — user was removed or never approved
+        # Only auto-create for the very FIRST user (owner bootstrap)
+        existing = db.execute(
+            select(Membership).where(Membership.tenant_id == tenant.id)
+        ).scalar_one_or_none()
+
+        if not existing:
+            # No members at all — this is the first user, make them owner
+            role = "owner"
+            mem = Membership(tenant_id=tenant.id, account_id=acct.id, role=role, status="active")
+            db.add(mem)
+            db.commit()
+            db.refresh(mem)
+        else:
+            # Tenant already has members — this user was removed or never approved
+            request.session.clear()
+            raise HTTPException(
+                status_code=403,
+                detail="Access revoked. Please contact your admin or sign up again."
+            )
 
     request.session["account_id"] = acct.id
     request.session["tenant_id"] = tenant.id
