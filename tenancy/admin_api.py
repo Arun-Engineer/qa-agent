@@ -20,6 +20,8 @@ from tenancy.audit import log_audit
 
 router = APIRouter()
 
+PLATFORM_GOD_EMAIL = os.getenv("PLATFORM_GOD_EMAIL", "").strip().lower()
+
 INVITE_SECRET = os.getenv("INVITE_SECRET", os.getenv("SESSION_SECRET", "dev-only-change-me"))
 INVITE_TTL_HOURS = int(os.getenv("INVITE_TTL_HOURS", "72"))
 
@@ -195,6 +197,12 @@ def update_member(
     if not mem:
         raise HTTPException(404, "Member not found")
 
+    # PLATFORM GOD PROTECTION — nobody can modify the god account
+    if PLATFORM_GOD_EMAIL:
+        target_acct = db.get(Account, mem.account_id)
+        if target_acct and target_acct.email.lower() == PLATFORM_GOD_EMAIL:
+            raise HTTPException(403, "This account is protected and cannot be modified.")
+
     # Prevent admins from granting owner unless actor is owner
     if req.role:
         new_role = req.role.strip().lower()
@@ -216,7 +224,7 @@ def update_member(
 
     if req.status:
         st = req.status.strip().lower()
-        if st not in ("active", "disabled"):
+        if st not in ("active", "disabled", "pending"):
             raise HTTPException(400, "Invalid status")
 
         # Don't let admin disable owner unless actor is owner
@@ -334,3 +342,259 @@ def platform_grant_role(
 
     db.commit()
     return {"ok": True, "email": email, "platform_role": role}
+
+# ─── Pending Signup Approvals ───
+
+@router.get("/api/admin/pending")
+def list_pending(
+    request: Request,
+    db: Session = Depends(get_db),
+    ctx=Depends(require_min_tenant_role("admin")),
+):
+    """List all pending signup requests for the tenant."""
+    tenant = ctx["tenant"]
+
+    rows = db.execute(
+        select(Membership, Account)
+        .join(Account, Account.id == Membership.account_id)
+        .where(Membership.tenant_id == tenant.id, Membership.status == "pending")
+        .order_by(Membership.created_at.desc())
+    ).all()
+
+    return [
+        {
+            "membership_id": mem.id,
+            "account_id": acct.id,
+            "email": acct.email,
+            "requested_at": mem.created_at.isoformat(),
+        }
+        for mem, acct in rows
+    ]
+
+
+class ApprovalAction(BaseModel):
+    action: str  # "approve" | "reject"
+    role: str = "member"  # role to assign on approval
+
+
+@router.post("/api/admin/pending/{membership_id}")
+def approve_or_reject(
+    membership_id: str,
+    req: ApprovalAction,
+    request: Request,
+    db: Session = Depends(get_db),
+    ctx=Depends(require_min_tenant_role("admin")),
+):
+    """Approve or reject a pending signup."""
+    tenant = ctx["tenant"]
+    actor_id = ctx["account_id"]
+
+    mem = db.execute(
+        select(Membership).where(
+            Membership.id == membership_id,
+            Membership.tenant_id == tenant.id,
+            Membership.status == "pending",
+        )
+    ).scalar_one_or_none()
+
+    if not mem:
+        raise HTTPException(404, "Pending request not found")
+
+    if req.action == "approve":
+        role = req.role.strip().lower()
+        if role not in ("owner", "admin", "member", "viewer"):
+            raise HTTPException(400, "Invalid role")
+        mem.status = "active"
+        mem.role = role
+
+        # Audit log
+        log_audit(db, request, tenant.id, actor_id, "member.approved", {
+            "membership_id": mem.id,
+            "email": db.execute(select(Account).where(Account.id == mem.account_id)).scalar_one().email,
+            "role": role,
+        })
+
+        db.commit()
+        return {"status": "approved", "role": role}
+
+    elif req.action == "reject":
+        email = db.execute(select(Account).where(Account.id == mem.account_id)).scalar_one().email
+
+        # Delete the membership (user account remains but has no access)
+        db.delete(mem)
+
+        log_audit(db, request, tenant.id, actor_id, "member.rejected", {
+            "membership_id": membership_id,
+            "email": email,
+        })
+
+        db.commit()
+        return {"status": "rejected"}
+
+    else:
+        raise HTTPException(400, "Action must be 'approve' or 'reject'")
+
+
+# ─── User Registry + Management ───
+
+@router.get("/api/admin/users")
+def list_all_users(
+    request: Request,
+    db: Session = Depends(get_db),
+    ctx=Depends(require_min_tenant_role("admin")),
+):
+    """List all registered users with role, status, signup date."""
+    tenant: Tenant = ctx["tenant"]
+
+    rows = db.execute(
+        select(Membership, Account)
+        .join(Account, Account.id == Membership.account_id)
+        .where(Membership.tenant_id == tenant.id)
+        .order_by(Membership.created_at.desc())
+    ).all()
+
+    users = []
+    for mem, acct in rows:
+        users.append({
+            "membership_id": mem.id,
+            "account_id": acct.id,
+            "email": acct.email,
+            "role": mem.role,
+            "status": mem.status,
+            "registered_at": mem.created_at.isoformat(),
+            "is_active": acct.is_active,
+        })
+
+    total = len(users)
+    by_role = {}
+    by_status = {}
+    for u in users:
+        by_role[u["role"]] = by_role.get(u["role"], 0) + 1
+        by_status[u["status"]] = by_status.get(u["status"], 0) + 1
+
+    return {
+        "users": users,
+        "summary": {"total": total, "by_role": by_role, "by_status": by_status},
+    }
+
+
+@router.delete("/api/admin/users/{membership_id}")
+def remove_user(
+    membership_id: str,
+    request: Request,
+    db: Session = Depends(get_db),
+    ctx=Depends(require_min_tenant_role("admin")),
+):
+    """Remove a user from the tenant (membership deleted, account stays)."""
+    tenant: Tenant = ctx["tenant"]
+    actor_id = ctx["account_id"]
+    actor_mem: Membership = ctx["membership"]
+
+    mem = db.execute(
+        select(Membership).where(
+            Membership.id == membership_id,
+            Membership.tenant_id == tenant.id,
+        )
+    ).scalar_one_or_none()
+
+    if not mem:
+        raise HTTPException(404, "User not found in this tenant")
+    if str(mem.account_id) == str(actor_id):
+        raise HTTPException(400, "You cannot remove yourself")
+    if mem.role == "owner" and actor_mem.role != "owner":
+        raise HTTPException(403, "Only owner can remove another owner")
+
+    acct = db.get(Account, mem.account_id)
+    email = acct.email if acct else "unknown"
+
+    # PLATFORM GOD PROTECTION
+    if PLATFORM_GOD_EMAIL and email.lower() == PLATFORM_GOD_EMAIL:
+        raise HTTPException(403, "This account is protected and cannot be removed.")
+
+    db.delete(mem)
+
+    log_audit(db, request, tenant.id, actor_id, "member.removed", {
+        "membership_id": membership_id, "email": email, "role": mem.role,
+    })
+    db.commit()
+    return {"ok": True, "removed": email, "membership_id": membership_id}
+
+
+class UserActionByEmail(BaseModel):
+    email: EmailStr
+    action: str       # "remove" | "change_role" | "disable" | "enable"
+    role: str = ""    # required when action == "change_role"
+
+
+@router.post("/api/admin/users/manage")
+def manage_user_by_email(
+    req: UserActionByEmail,
+    request: Request,
+    db: Session = Depends(get_db),
+    ctx=Depends(require_min_tenant_role("admin")),
+):
+    """Admin quick-action: manage a user by email."""
+    tenant: Tenant = ctx["tenant"]
+    actor_id = ctx["account_id"]
+    actor_mem: Membership = ctx["membership"]
+
+    email = req.email.strip().lower()
+    action = req.action.strip().lower()
+
+    acct = db.execute(select(Account).where(Account.email == email)).scalar_one_or_none()
+    if not acct:
+        raise HTTPException(404, f"No account found for {email}")
+
+    mem = db.execute(
+        select(Membership).where(
+            Membership.account_id == acct.id,
+            Membership.tenant_id == tenant.id,
+        )
+    ).scalar_one_or_none()
+
+    if not mem:
+        raise HTTPException(404, f"{email} is not a member of this tenant")
+    if str(acct.id) == str(actor_id):
+        raise HTTPException(400, "You cannot modify your own account here")
+    if mem.role == "owner" and actor_mem.role != "owner":
+        raise HTTPException(403, "Only owner can modify another owner")
+
+    # PLATFORM GOD PROTECTION
+    if PLATFORM_GOD_EMAIL and email == PLATFORM_GOD_EMAIL:
+        raise HTTPException(403, "This account is protected and cannot be modified.")
+
+    if action == "remove":
+        old_role = mem.role
+        db.delete(mem)
+        log_audit(db, request, tenant.id, actor_id, "member.removed", {"email": email, "role": old_role})
+        db.commit()
+        return {"ok": True, "action": "removed", "email": email}
+
+    elif action == "change_role":
+        new_role = req.role.strip().lower()
+        if new_role not in ("owner", "admin", "member", "viewer"):
+            raise HTTPException(400, "Invalid role. Use: owner, admin, member, viewer")
+        if new_role == "owner" and actor_mem.role != "owner":
+            raise HTTPException(403, "Only owner can grant owner role")
+        old_role = mem.role
+        mem.role = new_role
+        log_audit(db, request, tenant.id, actor_id, "member.role_changed", {
+            "email": email, "old_role": old_role, "new_role": new_role,
+        })
+        db.commit()
+        return {"ok": True, "action": "role_changed", "email": email, "old_role": old_role, "new_role": new_role}
+
+    elif action == "disable":
+        mem.status = "disabled"
+        log_audit(db, request, tenant.id, actor_id, "member.disabled", {"email": email})
+        db.commit()
+        return {"ok": True, "action": "disabled", "email": email}
+
+    elif action == "enable":
+        mem.status = "active"
+        log_audit(db, request, tenant.id, actor_id, "member.enabled", {"email": email})
+        db.commit()
+        return {"ok": True, "action": "enabled", "email": email}
+
+    else:
+        raise HTTPException(400, "Invalid action. Use: remove, change_role, disable, enable")

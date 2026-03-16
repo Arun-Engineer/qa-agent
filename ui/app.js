@@ -759,6 +759,7 @@ async function loadAdmin() {
 
   // Load LLM config first
   await loadLLMConfig();
+  await loadPendingApprovals();
 
   try {
     const me = await fetchJson("/api/admin/me");
@@ -1089,8 +1090,10 @@ function hideAll() {
   document.getElementById("executor").classList.add("hidden");
   document.getElementById("runs").classList.add("hidden");
   document.getElementById("ask").classList.add("hidden");
-  const adminEl = document.getElementById("admin");
+  var adminEl = document.getElementById("admin");
   if (adminEl) adminEl.classList.add("hidden");
+  var consoleEl = document.getElementById("console");
+  if (consoleEl) consoleEl.classList.add("hidden");
 }
 
 /* -----------------------------
@@ -1367,3 +1370,51 @@ function updateTokenCard() {
 window.setFilter = setFilter;
 window.setHistoryFilter = setHistoryFilter;
 window.trackTokens = trackTokens;
+
+/* ═══ Pending Signup Approvals ═══ */
+async function loadPendingApprovals() {
+  var container = document.getElementById("pendingList");
+  if (!container) return;
+  try {
+    var pending = await fetchJson("/api/admin/pending");
+    if (!pending || !pending.length) {
+      container.innerHTML = '<div class="muted">No pending requests.</div>';
+      var b = document.getElementById("pendingBadge");
+      if (b) b.style.display = "none";
+      return;
+    }
+    var b = document.getElementById("pendingBadge");
+    if (b) { b.textContent = pending.length; b.style.display = "inline-flex"; }
+    var html = "";
+    for (var i = 0; i < pending.length; i++) {
+      var p = pending[i];
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">' +
+        '<div><div style="font-weight:700">' + escapeHtml(p.email) + '</div>' +
+        '<div class="muted" style="font-size:11px">Requested: ' + fmtTs(p.requested_at) + '</div></div>' +
+        '<div style="display:flex;gap:6px;align-items:center">' +
+          '<select id="approveRole_' + p.membership_id + '" class="admin-select" style="width:100px;height:32px;font-size:11px">' +
+            '<option value="viewer">viewer</option><option value="member" selected>member</option><option value="admin">admin</option></select>' +
+          '<button class="btn btn-primary" style="height:32px;padding:0 12px;font-size:11px" onclick="approveUser(\'' + p.membership_id + '\')">Approve</button>' +
+          '<button class="btn" style="height:32px;padding:0 12px;font-size:11px;color:#ef4444" onclick="rejectUser(\'' + p.membership_id + '\')">Reject</button>' +
+        '</div></div>';
+    }
+    container.innerHTML = html;
+  } catch (e) { if (container) container.innerHTML = '<div class="muted">Unable to load.</div>'; }
+}
+async function approveUser(id) {
+  var role = (document.getElementById("approveRole_" + id) || {}).value || "member";
+  try {
+    await fetchJson("/api/admin/pending/" + id, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({action:"approve",role:role}) });
+    loadPendingApprovals(); loadMembers();
+  } catch (e) { alert("Failed: " + e.message); }
+}
+async function rejectUser(id) {
+  if (!confirm("Reject this user? They will not be able to access the platform.")) return;
+  try {
+    await fetchJson("/api/admin/pending/" + id, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({action:"reject",role:"member"}) });
+    loadPendingApprovals();
+  } catch (e) { alert("Failed: " + e.message); }
+}
+window.approveUser = approveUser;
+window.rejectUser = rejectUser;
+window.loadPendingApprovals = loadPendingApprovals;

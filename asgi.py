@@ -21,6 +21,7 @@ import tenancy.content_models  # noqa
 from auth.routes import router as auth_router
 from tenancy.routes_apex import router as apex_router
 from tenancy.admin_api import router as admin_api_router
+#from tenancy.admin_users_api import router as admin_users_router
 from tenancy.tenant_agent_api import router as agent_api_router
 
 # ✅ Phase 0+1 core API pieces (from src/api/main.py)
@@ -106,6 +107,7 @@ tenant_app.include_router(auth_router)
 
 # ✅ Phase 2 admin router first
 tenant_app.include_router(admin_api_router)
+#tenant_app.include_router(admin_users_router)
 
 # Phase 2: Discovery Engine API
 from src.api.routes.discovery import router as discovery_router
