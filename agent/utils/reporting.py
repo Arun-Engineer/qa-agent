@@ -276,6 +276,8 @@ def _infer_expected_for_case(case_data: Dict[str, Any], spec: str) -> str:
 
     if not parts:
         t = spec.lower()
+        if "login" in t and ("invalid" in t or "not" in t):
+            return "Login rejected; error message shown; stays on login page"
         return spec
 
     return "; ".join(parts)
@@ -322,10 +324,17 @@ def _summarize(
                 failed += 1
             else:
                 res = (item or {}).get("result") or {}
-                sm = res.get("summary") or {}
-                passed  += int(sm.get("passed",  0) or 0)
-                failed  += int(sm.get("failed",  0) or 0)
-                skipped += int(sm.get("skipped", 0) or 0)
+                rpt = res.get("report") or res.get("json_report") or {}
+                tests = rpt.get("tests") if isinstance(rpt, dict) else None
+                if tests:
+                    passed  += sum(1 for t in tests if t.get("outcome") == "passed")
+                    failed  += sum(1 for t in tests if t.get("outcome") == "failed")
+                    skipped += sum(1 for t in tests if t.get("outcome") == "skipped")
+                else:
+                    sm = res.get("summary") or {}
+                    passed  += int(sm.get("passed",  0) or 0)
+                    failed  += int(sm.get("failed",  0) or 0)
+                    skipped += int(sm.get("skipped", 0) or 0)
 
     # Priority 3: count from plan test data
     if passed == failed == skipped == 0:
@@ -503,7 +512,12 @@ def _build_testcases(
         return headers, rows
 
     # === PATH B: No pytest report — build rows from plan test data ===
-    if plan_test_data:
+    # Skip PATH B if we have orchestrator step results — PATH C handles those better
+    _has_step_results = any(
+        (item or {}).get("status") or (item or {}).get("result")
+        for item in detailed_results
+    )
+    if plan_test_data and not _has_step_results:
         for i, case in enumerate(plan_test_data, start=1):
             case_name = case.get("name", f"Case {i}")
             scenario = _humanize_case_name(case_name)
@@ -521,7 +535,7 @@ def _build_testcases(
                 if int(sm.get("failed", 0) or 0) > 0:
                     overall_ok = False
 
-            status = "Pass" if overall_ok else "Inconclusive"
+            status = "Pass" if overall_ok else "Fail"
             actual = (
                 "Step completed successfully."
                 if overall_ok
@@ -561,11 +575,10 @@ def _build_testcases(
 
     # === PATH C: One row per orchestrator step ===
     for idx, item in enumerate(detailed_results, start=1):
-        step        = (item or {}).get("step") or {}
-        args        = step.get("args") or {}
-        res         = (item or {}).get("result") or {}
+        step = (item or {}).get("step") or {}
+        res = (item or {}).get("result") or {}
         step_status = (item or {}).get("status") or ""
-        error_msg   = (item or {}).get("error") or "" or ""
+        error_msg = (item or {}).get("error") or ""
         tool = step.get("tool") or ""
         args = step.get("args") or {}
         si = step.get("index", idx - 1)
@@ -583,8 +596,13 @@ def _build_testcases(
                 or page_hint
         )
 
-        # Scenario = description from plan args (not the goal)
-        scenario = description
+        # Scenario = human readable test scenario name
+        scenario = (
+            args.get("linked_scenario")
+            or args.get("description")
+            or path_stem.replace("_", " ").title()
+            or goal
+        )
 
         # Expected = what this step was supposed to test
         linked = args.get("linked_scenario") or args.get("description") or goal
