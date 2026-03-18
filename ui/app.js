@@ -469,7 +469,7 @@ async function createSpecFromUpload(file, extraText) {
   return data.spec_id;
 }
 
-async function runAgentWithSpecId(spec_id, creds = {}) {
+async function runAgentWithSpecId(spec_id) {
   const data = await fetchJson("/api/run", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -490,60 +490,31 @@ async function runAgentWithSpecId(spec_id, creds = {}) {
    Run Spec
 ----------------------------- */
 
-// ── Run abort controller ──────────────────────────────────────
-let _runAbortController = null;
+// ── Execute / Stop / Thinking button management ──────────────
+window._runAbortController = null;
 
 function _setRunning(running) {
   const execBtn = document.getElementById("executeBtn");
   const stopBtn = document.getElementById("stopBtn");
-  if (execBtn) execBtn.style.display = running ? "none"  : "";
-  if (stopBtn) stopBtn.style.display = running ? ""      : "none";
+  const badge   = document.getElementById("thinkingBadge");
+  if (execBtn) execBtn.style.display  = running ? "none" : "";
+  if (stopBtn) stopBtn.style.display  = running ? "" : "none";
+  if (badge)   badge.style.display    = running ? "" : "none";
 }
 
 function stopRun() {
-  if (_runAbortController) {
-    _runAbortController.abort();
-    _runAbortController = null;
+  if (window._runAbortController) {
+    window._runAbortController.abort();
+    window._runAbortController = null;
   }
   _setRunning(false);
   const resultDiv = document.getElementById("executionResult");
   if (resultDiv) {
     resultDiv.innerHTML =
       '<div class="card" style="padding:20px;color:#f59e0b;">' +
-      '&#9632; Run stopped by user. Click Execute to start a new run.' +
+      '■ Run stopped by user. Click Execute to start a new run.' +
       '</div>';
   }
-}
-
-// ── Extract credentials from spec text ───────────────────────
-function extractCredsFromSpec(spec) {
-  const creds = {};
-  const mobileMatch = spec.match(/(?:mobile|phone|number)\s*[:\-]\s*(\d{10,})/i);
-  if (mobileMatch) creds.mobile = mobileMatch[1].trim();
-
-  const otpMatch = spec.match(/otp\s*[:\-]\s*(\d{4,8})/i);
-  if (otpMatch) creds.otp = otpMatch[1].trim();
-
-  const pinMatch = spec.match(/pincode\s*[:\-]\s*(\d{4,8})/i);
-  if (pinMatch) creds.pincode = pinMatch[1].trim();
-
-  // Extract URLs
-  const urlMatches = [...spec.matchAll(/https?:\/\/[^\s)\]"'<>]+/g)];
-  if (urlMatches.length > 0) {
-    creds.url = urlMatches[0][0].replace(/[.,;]+$/, "");
-  }
-
-  return creds;
-}
-
-// ── Strip credentials from spec before sending to server ─────
-function stripCredsFromSpec(spec) {
-  return spec
-    .replace(/(?:mobile|phone|number)\s*[:\-]\s*\d{10,}/gi, "")
-    .replace(/otp\s*[:\-]\s*\d{4,8}/gi, "")
-    .replace(/(?:use this login|login credentials if required)[^\n]*/gi, "")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
 }
 
 async function runSpec() {
@@ -559,22 +530,8 @@ async function runSpec() {
     return;
   }
 
-  // Extract credentials from spec (mobile, OTP, pincode, URL)
-  // These are passed as context — never stored in .env
-  const creds = extractCredsFromSpec(spec);
-  if (Object.keys(creds).length > 0) {
-    console.log("[runSpec] Extracted credentials from spec:", Object.keys(creds).join(", "));
-    // Store temporarily in sessionStorage for this run only
-    if (creds.mobile)  sessionStorage.setItem("run_mobile",  creds.mobile);
-    if (creds.otp)     sessionStorage.setItem("run_otp",     creds.otp);
-    if (creds.pincode) sessionStorage.setItem("run_pincode", creds.pincode);
-    if (creds.url)     sessionStorage.setItem("run_url",     creds.url);
-  }
-
-  // Show Stop button, hide Execute
   _setRunning(true);
-  _runAbortController = new AbortController();
-
+  window._runAbortController = new AbortController();
   resultDiv.innerHTML = renderSpecThinking();
 
   try {
@@ -585,13 +542,7 @@ async function runSpec() {
     currentSpecId = spec_id;
     localStorage.setItem(STORE.specKey, spec_id);
 
-    const _creds = {
-      mobile:  sessionStorage.getItem("run_mobile")  || "",
-      otp:     sessionStorage.getItem("run_otp")     || "",
-      pincode: sessionStorage.getItem("run_pincode") || "",
-      url:     sessionStorage.getItem("run_url")     || "",
-    };
-    const data = await runAgentWithSpecId(spec_id, _creds);
+    const data = await runAgentWithSpecId(spec_id);
 
     const artifacts = pickArtifacts(data);
     const failed = data.failed ?? 0;
@@ -651,7 +602,6 @@ async function runSpec() {
       e.message
     )}</div>`;
   }
-  _setRunning(false); _runAbortController = null;
 }
 
 /* -----------------------------
@@ -1026,8 +976,6 @@ async function loadAudit() {
       return;
     }
 
-    const badge = document.getElementById("auditCountBadge");
-    if (badge) badge.textContent = logs.length;
     container.innerHTML = logs
       .map(
         (a) => `

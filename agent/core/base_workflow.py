@@ -133,8 +133,20 @@ class BaseWorkflow(ABC):
         try:
             from agent.utils.reporting import export_run_artifacts
 
+            plan_steps = plan.get("steps") or []
             detailed_results = [
-                {"step": s.tool, "result": s.output, "status": s.status}
+                {
+                    "step": {
+                        "tool": s.tool,
+                        "index": s.step_index,
+                        "args": plan_steps[s.step_index].get("args", {})
+                        if s.step_index < len(plan_steps) else {},
+                    },
+                    "result": s.output,
+                    "status": s.status,
+                    "error": s.error,
+                    "duration_ms": s.duration_ms,
+                }
                 for s in run_result.steps
             ]
             artifacts = export_run_artifacts(spec, plan, detailed_results)

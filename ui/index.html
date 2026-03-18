@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>AI QA Control Center</title>
   <link rel="icon" type="image/png" href="/static/branding/aiqa_logo.png">
-  <link rel="stylesheet" href="/static/style.css?v=20260317_141806">
+  <link rel="stylesheet" href="/static/style.css">
 </head>
 
 <body>
@@ -165,7 +165,17 @@
           <div class="muted" style="margin-top:6px;">Tip: upload OR paste below. If both are provided, upload wins.</div>
         </div>
         <textarea id="specInput" placeholder="Paste user story..."></textarea>
-        <button id="executeBtn" onclick="runSpec()">Execute</button><button id="stopBtn" onclick="stopRun()" style="display:none;background:#ef4444;color:white;border:none;padding:10px 24px;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;margin-left:10px;" title="Stop the current run">&#9632; Stop</button>
+        <div id="runBtnGroup" style="display:inline-flex;align-items:center;gap:12px;margin-top:12px;">
+          <button id="executeBtn" onclick="runSpec()" style="background:#238636;color:white;border:none;padding:10px 28px;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;">
+            ▶ Execute
+          </button>
+          <button id="stopBtn" onclick="stopRun()" style="display:none;background:#da3633;color:white;border:none;padding:10px 28px;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;">
+            ■ Stop
+          </button>
+          <span id="thinkingBadge" style="display:none;color:#f0883e;font-size:13px;font-weight:500;animation:pulse 1.5s infinite;">
+            ⏳ THINKING...
+          </span>
+        </div>
         <div id="executionResult"></div>
       </div>
 
@@ -311,16 +321,13 @@
             </div>
             <div class="admin-section">
               <div class="rv-audit-header">
-                <div class="rv-audit-title-row">
-                  <div class="admin-section-title">Audit Logs</div>
-                  <span class="audit-count-badge" id="auditCountBadge">0</span>
-                </div>
+                <div class="admin-section-title">Audit Logs</div>
                 <button class="rv-btn-export" onclick="exportAuditLogs()">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                   Export
                 </button>
               </div>
-              <div id="auditList" class="admin-list" style="max-height:340px;overflow-y:auto;padding-right:4px;scrollbar-width:thin;scrollbar-color:#30363d transparent;"></div>
+              <div id="auditList" class="admin-list"></div>
             </div>
           </div>
 

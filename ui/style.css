@@ -1193,87 +1193,34 @@ body.lock-scroll #askResult::-webkit-scrollbar-thumb:hover {
 .filter-chip.active{background:rgba(59,130,246,.15);border-color:rgba(59,130,246,.4);color:#fff}
 @media(max-width:640px){.dash-filters{flex-direction:column;gap:10px}.filter-group{flex-wrap:wrap}}
 
-
-/* ── Audit Logs Scrollable Container ── */
-#auditList {
-    max-height: 340px;
-    overflow-y: auto;
-    padding-right: 4px;
-    scroll-behavior: smooth;
-}
-/* Thin scrollbar — WebKit */
-#auditList::-webkit-scrollbar { width: 5px; }
-#auditList::-webkit-scrollbar-track { background: transparent; }
-#auditList::-webkit-scrollbar-thumb {
-    background: #30363d;
-    border-radius: 3px;
-}
-#auditList::-webkit-scrollbar-thumb:hover { background: #58a6ff; }
-/* Firefox */
-#auditList { scrollbar-width: thin; scrollbar-color: #30363d transparent; }
-
-/* Audit item polish */
-#auditList .admin-item {
-    border: 1px solid #21262d;
-    border-radius: 8px;
-    padding: 10px 14px;
-    margin-bottom: 8px;
-    background: #0d1117;
-    transition: border-color 0.15s ease;
-}
-#auditList .admin-item:hover { border-color: #30363d; }
-#auditList .admin-item:last-child { margin-bottom: 0; }
-
-/* Count badge next to Audit Logs title */
-.rv-audit-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 12px;
-}
-.audit-count-badge {
-    font-size: 11px;
-    background: #21262d;
-    color: #8b949e;
-    border-radius: 10px;
-    padding: 2px 8px;
-    margin-left: 8px;
-    font-weight: 500;
-}
-.rv-audit-title-row {
-    display: flex;
-    align-items: center;
-    gap: 0;
-}
-
-
-/* ── LLM Dropdown Fix (exact IDs) ── */
+/* ── Dark theme for LLM dropdowns ── */
 #llmProvider,
-#llmModel {
-    background-color: #0d1117 !important;
-    color: #e6edf3 !important;
-    border: 1px solid #30363d !important;
-    border-radius: 6px !important;
-    padding: 8px 32px 8px 12px !important;
-    font-size: 14px !important;
-    width: 100% !important;
-    appearance: none !important;
-    -webkit-appearance: none !important;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%236e7681' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E") !important;
-    background-repeat: no-repeat !important;
-    background-position: right 12px center !important;
-    cursor: pointer !important;
+#llmModel,
+select.admin-select {
+  background-color: #0d1117 !important;
+  color: #e6edf3 !important;
+  border: 1px solid #30363d !important;
+  border-radius: 6px !important;
+  padding: 6px 10px !important;
 }
-#llmProvider:hover, #llmModel:hover {
-    border-color: #58a6ff !important;
+#llmProvider option,
+#llmModel option,
+select.admin-select option {
+  background-color: #161b22 !important;
+  color: #e6edf3 !important;
 }
-#llmProvider:focus, #llmModel:focus {
-    outline: none !important;
-    border-color: #58a6ff !important;
-    box-shadow: 0 0 0 3px rgba(88,166,255,0.15) !important;
+
+/* ── Audit log scrollable container ── */
+#auditList {
+  max-height: 340px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: #30363d #0d1117 !important;
+  border: 1px solid #21262d !important;
+  border-radius: 6px !important;
+  padding: 4px !important;
 }
-#llmProvider option, #llmModel option,
-#llmProvider optgroup, #llmModel optgroup {
-    background-color: #161b22 !important;
-    color: #e6edf3 !important;
-}
+#auditList::-webkit-scrollbar { width: 5px !important; }
+#auditList::-webkit-scrollbar-track { background: #0d1117 !important; }
+#auditList::-webkit-scrollbar-thumb { background: #30363d !important; border-radius: 3px !important; }

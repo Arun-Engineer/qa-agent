@@ -118,7 +118,9 @@ class UiTestWorkflow(BaseWorkflow):
         path = Path(args.get("path", "tests/test_ui_generated.py"))
 
         # Never regenerate auth prerequisite - it has verified working selectors
-        is_auth = "auth" in str(path).lower() or "prerequisite" in str(path).lower()
+        spec_lower = (spec or '').lower()
+        is_jiomart = 'jiomart' in spec_lower or 'jiomartjcp' in spec_lower
+        is_auth = is_jiomart and ('auth' in str(path).lower() or 'prerequisite' in str(path).lower())
         should_regen = (not path.exists() or os.getenv("FORCE_REGEN_TESTS", "0") == "1") and not is_auth
         if should_regen:
             self._generate_test_file(step, spec, path)

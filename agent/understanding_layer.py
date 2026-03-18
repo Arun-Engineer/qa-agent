@@ -14,9 +14,11 @@ from urllib.parse import urlparse
 
 URL_RE = re.compile(r"https?://[^\s\)\"\']+")
 
+# Signals that indicate app REQUIRES login to access (login wall)
+# NOT signals that the spec is ABOUT testing login functionality
 _LOGIN_WALL_SIGNALS = [
-    "login", "sign in", "signin", "log in", "authenticate",
-    "username", "password", "email", "forgot password",
+    "login required", "sign in required", "must login",
+    "mobile:", "otp:", "use this login", "credentials if required", "forgot password",
 ]
 _NON_LOGIN_KEYWORDS = [
     "cart", "product", "checkout", "category", "search",
@@ -126,7 +128,14 @@ def enrich_spec_with_understanding(
     ctx.site_model_path = recon.get("model_path")
     ctx.recon_summary = (recon.get("summary") or "").strip()
     ctx.recon_pages_crawled = recon.get("pages_crawled")
-    ctx.login_wall_detected = _detect_login_wall(recon)
+    # If spec is ABOUT testing login functionality, it is NOT a login wall
+    _spec_lower = spec.lower()
+    _is_testing_login = any(x in _spec_lower for x in [
+        'invalid login', 'test login', 'login cases', 'login functionality',
+        'login test', 'invalid credential', 'wrong password', 'wrong username',
+        'login for', 'login with'
+    ])
+    ctx.login_wall_detected = False if _is_testing_login else _detect_login_wall(recon)
 
     if ctx.site_model_path:
         os.environ["SITE_MODEL_PATH"] = ctx.site_model_path

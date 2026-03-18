@@ -70,19 +70,40 @@ def export_run_artifacts(
         json.dumps(payload, indent=2, default=_json_default), encoding="utf-8"
     )
 
-    # Find pytest-json-report output
+    # Find and MERGE all step pytest-json-report files
     report_obj = None
     copied_report = None
-    src_report = _find_pytest_report_json(detailed_results)
-    if src_report:
-        try:
-            txt = Path(src_report).read_text(encoding="utf-8", errors="ignore")
-            (out_dir / report_json_name).write_text(txt, encoding="utf-8")
+    try:
+        import json as _json
+        all_tests = []
+        all_summary = {"passed": 0, "failed": 0, "skipped": 0, "errors": 0}
+        for item in detailed_results:
+            res = (item or {}).get("result") or {}
+            rf = res.get("report_file")
+            if not rf:
+                continue
+            p = Path(rf)
+            if not p.exists():
+                p = Path("/app") / rf
+            if not p.exists():
+                continue
+            try:
+                rpt = _json.loads(p.read_text(encoding="utf-8", errors="ignore"))
+                tests = rpt.get("tests") or []
+                all_tests.extend(tests)
+                sm = rpt.get("summary") or {}
+                for k in all_summary:
+                    all_summary[k] += int(sm.get(k, 0) or 0)
+            except Exception:
+                pass
+        if all_tests:
+            report_obj = {"tests": all_tests, "summary": all_summary}
+            merged_txt = _json.dumps(report_obj, indent=2)
+            (out_dir / report_json_name).write_text(merged_txt, encoding="utf-8")
             copied_report = report_json_name
-            report_obj = json.loads(txt)
-        except Exception:
-            copied_report = None
-            report_obj = None
+    except Exception as _re:
+        report_obj = None
+        copied_report = None
 
     # Build report data
     summary = _summarize(
@@ -181,7 +202,10 @@ def _find_pytest_report_json(
             res = (item or {}).get("result") or {}
             rf = res.get("report_file")
             if rf:
+                # Try absolute path first, then relative to /app
                 p = Path(rf)
+                if not p.exists():
+                    p = Path('/app') / rf
                 if p.exists():
                     return str(p)
 
@@ -438,8 +462,15 @@ def _build_testcases(
 
             # Extract module and case name from nodeid
             file_part = nodeid.split("::")[0] if "::" in nodeid else nodeid
-            module = Path(file_part).stem if file_part else "automation"
-            module = module.replace("_", " ").title()
+            raw_stem = Path(file_part).stem if file_part else "automation"
+            # Clean module name - remove URL fragments, use linked_scenario
+            linked_mod = args.get("linked_scenario") or args.get("description") or ""
+            if linked_mod:
+                # Use first 5 words of linked scenario as module
+                words = linked_mod.split()[:5]
+                module = " ".join(words).title()
+            else:
+                module = re.sub(r"Https?\s+.*", "", raw_stem.replace("_", " ").title()).strip() or raw_stem
 
             # Extract parametrize case name: test_xxx[chromium-case_name]
             case_name = ""
@@ -455,18 +486,24 @@ def _build_testcases(
                 matched_plan = plan_data_lookup.get(clean_case, {})
 
             # Build scenario (human readable)
-            scenario = _humanize_case_name(case_name) if case_name else nodeid
+            # If case_name is just a browser name, use linked_scenario from plan
+            browser_names = {'chromium', 'firefox', 'webkit', 'chrome', 'safari'}
+            if case_name.lower() in browser_names or not case_name:
+                scenario = args.get('linked_scenario') or args.get('description') or nodeid
+            else:
+                scenario = _humanize_case_name(case_name) if case_name else nodeid
 
             # Build test data column
             inputs = matched_plan.get("inputs") or {}
             test_data_str = _format_test_data(inputs) if inputs else ""
 
-            # Build expected results
+            # Build expected results - prefer linked_scenario for clarity
+            linked_exp = args.get("linked_scenario") or args.get("description") or ""
             if matched_plan:
-                expected = _infer_expected_for_case(matched_plan, goal)
+                inferred = _infer_expected_for_case(matched_plan, goal)
+                expected = inferred if inferred and inferred != goal else (linked_exp or inferred or goal)
             else:
-                expected = args.get("linked_scenario") or args.get(
-                    "description") or f"Step {i}: verify functionality works correctly"
+                expected = linked_exp or f"Step {i}: verify functionality works correctly"
 
             # Build actual result
             if status == "Pass":
@@ -638,21 +675,33 @@ def _build_testcases(
                             fail_msgs.append(msg)
                 actual = fail_msgs[0] if fail_msgs else f"Failed: {f}, Passed: {p}"
         elif step_status:
-            # Use orchestrator-level status
-            status = "Pass" if step_status == "passed" else ("Skip" if step_status == "skipped" else "Fail")
-            if status == "Pass":
-                actual = "Step completed successfully."
-            elif status == "Skip":
-                actual = "Step skipped."
-            else:
-                actual = _short_error(error_msg, 250) or "Step failed — see run logs."
-        else:
-            # Last resort: check summary in result
+            # Use orchestrator-level status + result fields
             sm = res.get("summary") or {}
             f_count = int(sm.get("failed", 0) or 0)
             p_count = int(sm.get("passed", 0) or 0)
+            stderr = str(res.get("stderr") or "").strip()
+            stdout = str(res.get("stdout") or "").strip()
+            status = "Pass" if step_status == "passed" else ("Skip" if step_status == "skipped" else "Fail")
+            # Override status from summary if available
+            if f_count > 0:
+                status = "Fail"
+            elif p_count > 0 and f_count == 0:
+                status = "Pass"
+            if status == "Pass":
+                actual = f"All {p_count} test(s) passed successfully."
+            elif status == "Skip":
+                actual = "Step skipped."
+            else:
+                # Get real error from stderr/stdout
+                err = error_msg or stderr or stdout or ""
+                actual = _short_error(err, 280) or f"Failed: {f_count} test(s)"
+        else:
+            sm = res.get("summary") or {}
+            f_count = int(sm.get("failed", 0) or 0)
+            p_count = int(sm.get("passed", 0) or 0)
+            stderr = str(res.get("stderr") or "").strip()
             status = "Fail" if f_count > 0 else "Pass"
-            actual = f"Passed: {p_count}, Failed: {f_count}"
+            actual = _short_error(stderr, 250) if status == "Fail" else f"Passed: {p_count}"
 
         comments = ""
         if status == "Fail":
