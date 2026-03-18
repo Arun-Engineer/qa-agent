@@ -40,7 +40,7 @@ class RunArtifacts:
 
 
 def export_run_artifacts(
-    spec: str, plan: Dict[str, Any], detailed_results: List[Dict[str, Any]]
+        spec: str, plan: Dict[str, Any], detailed_results: List[Dict[str, Any]]
 ) -> RunArtifacts:
     """
     Generate real-world QA artifacts:
@@ -167,7 +167,7 @@ def _json_default(o: Any):
 
 
 def _find_pytest_report_json(
-    detailed_results: Optional[List[Dict[str, Any]]] = None,
+        detailed_results: Optional[List[Dict[str, Any]]] = None,
 ) -> Optional[str]:
     """
     Find the pytest-json-report output.
@@ -206,7 +206,7 @@ def _find_pytest_report_json(
 
 def _soft_breaks(s: str, for_pdf: bool = False) -> str:
     """Insert optional break hints for long tokens.
-    
+
     For Excel: use zero-width space (renders fine in Excel).
     For PDF: use plain text (no special chars — Helvetica can't render \u200b).
     """
@@ -276,8 +276,6 @@ def _infer_expected_for_case(case_data: Dict[str, Any], spec: str) -> str:
 
     if not parts:
         t = spec.lower()
-        if "login" in t and ("invalid" in t or "not" in t):
-            return "Login rejected; error message shown; stays on login page"
         return spec
 
     return "; ".join(parts)
@@ -296,30 +294,38 @@ def _short_error(s: str, limit: int = 260) -> str:
 
 
 def _summarize(
-    meta: Dict[str, str],
-    plan: Dict[str, Any],
-    detailed_results: List[Dict[str, Any]],
-    report_obj: Optional[Dict[str, Any]],
+        meta: Dict[str, str],
+        plan: Dict[str, Any],
+        detailed_results: List[Dict[str, Any]],
+        report_obj: Optional[Dict[str, Any]],
 ) -> Dict[str, Any]:
     goal = plan.get("goal") or ""
     passed = failed = skipped = 0
 
     # Priority 1: pytest-json-report summary (per-test level)
     if isinstance(report_obj, dict) and isinstance(
-        report_obj.get("summary"), dict
+            report_obj.get("summary"), dict
     ):
         s = report_obj["summary"]
         passed = int(s.get("passed", 0) or 0)
         failed = int(s.get("failed", 0) or 0)
         skipped = int(s.get("skipped", 0) or 0)
     else:
-        # Priority 2: runner summaries
+        # Priority 2: orchestrator step statuses (most reliable)
         for item in detailed_results:
-            res = (item or {}).get("result") or {}
-            sm = res.get("summary") or {}
-            passed += int(sm.get("passed", 0) or 0)
-            failed += int(sm.get("failed", 0) or 0)
-            skipped += int(sm.get("skipped", 0) or 0)
+            s_status = (item or {}).get("status") or ""
+            if s_status == "passed":
+                passed += 1
+            elif s_status == "skipped":
+                skipped += 1
+            elif s_status in ("failed", "error"):
+                failed += 1
+            else:
+                res = (item or {}).get("result") or {}
+                sm = res.get("summary") or {}
+                passed  += int(sm.get("passed",  0) or 0)
+                failed  += int(sm.get("failed",  0) or 0)
+                skipped += int(sm.get("skipped", 0) or 0)
 
     # Priority 3: count from plan test data
     if passed == failed == skipped == 0:
@@ -357,10 +363,10 @@ def _summarize(
 
 
 def _build_testcases(
-    spec: str,
-    plan: Dict[str, Any],
-    detailed_results: List[Dict[str, Any]],
-    report_obj: Optional[Dict[str, Any]],
+        spec: str,
+        plan: Dict[str, Any],
+        detailed_results: List[Dict[str, Any]],
+        report_obj: Optional[Dict[str, Any]],
 ) -> Tuple[List[str], List[List[Any]]]:
     headers = [
         "S.NO",
@@ -384,11 +390,11 @@ def _build_testcases(
         args = (st or {}).get("args") or {}
         if not page_hint:
             page_hint = (
-                args.get("url")
-                or args.get("base_url")
-                or args.get("page")
-                or args.get("endpoint")
-                or ""
+                    args.get("url")
+                    or args.get("base_url")
+                    or args.get("page")
+                    or args.get("endpoint")
+                    or ""
             )
         if not plan_module:
             plan_module = args.get("description") or ""
@@ -450,16 +456,17 @@ def _build_testcases(
             if matched_plan:
                 expected = _infer_expected_for_case(matched_plan, goal)
             else:
-                expected = "Login rejected; error message shown; stays on login page"
+                expected = args.get("linked_scenario") or args.get(
+                    "description") or f"Step {i}: verify functionality works correctly"
 
             # Build actual result
             if status == "Pass":
-                actual = "Login correctly rejected. Error message displayed as expected."
+                actual = "Test passed successfully."
             elif status == "Fail":
                 crash_msg = ""
                 if isinstance(t.get("call"), dict):
                     crash_msg = (
-                        ((t["call"].get("crash") or {}) or {}).get("message") or ""
+                            ((t["call"].get("crash") or {}) or {}).get("message") or ""
                     )
                 lr = t.get("longrepr") or ""
                 err = crash_msg or lr or ""
@@ -516,7 +523,7 @@ def _build_testcases(
 
             status = "Pass" if overall_ok else "Inconclusive"
             actual = (
-                "Login correctly rejected as expected"
+                "Step completed successfully."
                 if overall_ok
                 else "See run logs for details"
             )
@@ -552,34 +559,88 @@ def _build_testcases(
 
         return headers, rows
 
-    # === PATH C: Absolute fallback — suite-level rows ===
+    # === PATH C: One row per orchestrator step ===
     for idx, item in enumerate(detailed_results, start=1):
-        step = (item or {}).get("step") or {}
-        res = (item or {}).get("result") or {}
+        step        = (item or {}).get("step") or {}
+        args        = step.get("args") or {}
+        res         = (item or {}).get("result") or {}
+        step_status = (item or {}).get("status") or ""
+        error_msg   = (item or {}).get("error") or "" or ""
         tool = step.get("tool") or ""
         args = step.get("args") or {}
+        si = step.get("index", idx - 1)
 
-        module = _pretty_tool(tool)
+        # Module from step description or path
+        description = args.get("description") or args.get("path") or goal
+        path_stem = Path(args.get("path", "")).stem if args.get("path") else ""
+        module = path_stem.replace("_", " ").title() if path_stem else _pretty_tool(tool)
+
         page = (
-            args.get("url")
-            or args.get("base_url")
-            or args.get("page")
-            or args.get("endpoint")
-            or page_hint
+                args.get("url")
+                or args.get("base_url")
+                or args.get("page")
+                or args.get("endpoint")
+                or page_hint
         )
-        scenario = step.get("description") or step.get("name") or goal
-        sm = res.get("summary") or {}
-        p_count = int(sm.get("passed", 0) or 0)
-        f_count = int(sm.get("failed", 0) or 0)
-        s_count = int(sm.get("skipped", 0) or 0)
-        total = p_count + f_count + s_count
-        status = "Fail" if f_count > 0 else "Pass"
 
-        actual = f"Passed: {p_count}, Failed: {f_count}, Skipped: {s_count}"
+        # Scenario = description from plan args (not the goal)
+        scenario = description
+
+        # Expected = what this step was supposed to test
+        linked = args.get("linked_scenario") or args.get("description") or goal
+        expected = linked if linked and linked != goal else f"Step {idx}: {description}"
+
+        # Actual = parse from pytest report embedded in result
+        # Try: res["report"]["tests"] (pytest-json-report)
+        step_tests = None
+        if isinstance(res, dict):
+            rpt = res.get("report") or res.get("json_report") or {}
+            step_tests = rpt.get("tests") if isinstance(rpt, dict) else None
+            if not step_tests:
+                # Try res directly if it looks like a pytest report
+                step_tests = res.get("tests")
+
+        if step_tests and isinstance(step_tests, list):
+            # Have per-test data
+            p = sum(1 for t in step_tests if t.get("outcome") == "passed")
+            f = sum(1 for t in step_tests if t.get("outcome") == "failed")
+            s = sum(1 for t in step_tests if t.get("outcome") == "skipped")
+            status = "Pass" if f == 0 and p > 0 else ("Fail" if f > 0 else "Skip")
+            if status == "Pass":
+                actual = f"All {p} test(s) passed successfully."
+            else:
+                # Get first failure message
+                fail_msgs = []
+                for t in step_tests:
+                    if t.get("outcome") == "failed":
+                        crash = ((t.get("call") or {}).get("crash") or {}).get("message") or ""
+                        lr = t.get("longrepr") or ""
+                        msg = _short_error(crash or str(lr), 250)
+                        if msg:
+                            fail_msgs.append(msg)
+                actual = fail_msgs[0] if fail_msgs else f"Failed: {f}, Passed: {p}"
+        elif step_status:
+            # Use orchestrator-level status
+            status = "Pass" if step_status == "passed" else ("Skip" if step_status == "skipped" else "Fail")
+            if status == "Pass":
+                actual = "Step completed successfully."
+            elif status == "Skip":
+                actual = "Step skipped."
+            else:
+                actual = _short_error(error_msg, 250) or "Step failed — see run logs."
+        else:
+            # Last resort: check summary in result
+            sm = res.get("summary") or {}
+            f_count = int(sm.get("failed", 0) or 0)
+            p_count = int(sm.get("passed", 0) or 0)
+            status = "Fail" if f_count > 0 else "Pass"
+            actual = f"Passed: {p_count}, Failed: {f_count}"
+
         comments = ""
-        if f_count > 0:
-            err = res.get("error") or res.get("stderr") or res.get("output") or ""
-            comments = _short_error(err, 260) or "Suite has failures."
+        if status == "Fail":
+            comments = "Automation error — review error details and fix test code or raise bug if application defect."
+        elif args.get("is_prerequisite"):
+            comments = "Prerequisite step — auth setup for subsequent tests."
 
         rows.append(
             [
@@ -588,8 +649,8 @@ def _build_testcases(
                 str(page or ""),
                 str(scenario),
                 "",
-                goal,
-                actual,
+                str(expected),
+                str(actual),
                 status,
                 comments,
             ]
@@ -599,7 +660,7 @@ def _build_testcases(
 
 
 def _build_observations(
-    run_id: str, testcases_rows: List[List[Any]]
+        run_id: str, testcases_rows: List[List[Any]]
 ) -> Tuple[List[str], List[List[Any]]]:
     headers = ["S.NO", "BUG ID", "Description", "Priority"]
     obs = []
@@ -644,13 +705,13 @@ _BORDER = Border(
 
 
 def _write_excel(
-    out_path: Path,
-    meta: Dict[str, str],
-    summary: Dict[str, Any],
-    testcases_headers: List[str],
-    testcases_rows: List[List[Any]],
-    obs_headers: List[str],
-    obs_rows: List[List[Any]],
+        out_path: Path,
+        meta: Dict[str, str],
+        summary: Dict[str, Any],
+        testcases_headers: List[str],
+        testcases_rows: List[List[Any]],
+        obs_headers: List[str],
+        obs_rows: List[List[Any]],
 ) -> None:
     wb = openpyxl.Workbook()
 
@@ -760,13 +821,13 @@ def _write_excel(
 
 
 def _write_pdf(
-    out_path: Path,
-    meta: Dict[str, str],
-    summary: Dict[str, Any],
-    testcases_headers: List[str],
-    testcases_rows: List[List[Any]],
-    obs_headers: List[str],
-    obs_rows: List[List[Any]],
+        out_path: Path,
+        meta: Dict[str, str],
+        summary: Dict[str, Any],
+        testcases_headers: List[str],
+        testcases_rows: List[List[Any]],
+        obs_headers: List[str],
+        obs_rows: List[List[Any]],
 ) -> None:
     styles = getSampleStyleSheet()
 
@@ -924,7 +985,7 @@ def _write_pdf(
 
     # Detailed Test Cases
     def make_table(
-        headers: List[str], rows: List[List[Any]], weights: List[float]
+            headers: List[str], rows: List[List[Any]], weights: List[float]
     ) -> Table:
         data = [[P(h) for h in headers]]
         for r in rows:

@@ -88,4 +88,6 @@ ui/backups/
 ui/backups/
 files/
 
+.archive
+.pytest_cache
 

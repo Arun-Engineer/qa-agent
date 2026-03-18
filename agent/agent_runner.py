@@ -10,6 +10,7 @@ New:
   - Internally uses Orchestrator + Workflows
   - Adds retry, timeout, error handling
   - Supports workflow selection (api_test, ui_test, spec_review)
+  - Passes login_wall and scenario context through to orchestrator
 """
 from __future__ import annotations
 
@@ -66,13 +67,36 @@ def run_agent_from_spec(
     New parameter:
       workflow_name: "api_test" | "ui_test" | "spec_review" | "default"
       context: optional dict with tenant_id, account_id, etc.
+
+    Fix: Pre-runs understanding_layer so login_wall detection and scenario
+    counting happen BEFORE the orchestrator starts. This context is passed
+    into the workflow so the planner gets it at plan-time.
     """
+    context = context or {}
+
+    # ── Pre-flight: understanding layer runs here so context is available
+    # to the orchestrator/workflow before planning begins.
+    # The enriched spec (with advisory recon appended) is what gets planned.
+    enriched_spec = spec
+    try:
+        from agent.understanding_layer import enrich_spec_with_understanding
+        enriched_spec, understanding_ctx = enrich_spec_with_understanding(spec)
+        # Merge understanding context into the run context
+        context.setdefault("login_wall_detected", understanding_ctx.login_wall_detected)
+        context.setdefault("user_scenarios", understanding_ctx.user_scenarios)
+        context.setdefault("base_url", understanding_ctx.base_url)
+        context.setdefault("recon_status", understanding_ctx.recon_status)
+    except Exception:
+        # Understanding layer failure is non-fatal — proceed with raw spec
+        pass
+
     # Configure orchestrator
     config = OrchestratorConfig(
         max_retries=int(os.getenv("QA_MAX_RETRIES", "3")),
         step_timeout=float(os.getenv("QA_STEP_TIMEOUT", "120")),
         planning_timeout=float(os.getenv("QA_PLAN_TIMEOUT", "60")),
-        enable_enrichment=os.getenv("QA_DISABLE_RECON", "") not in ("1", "true"),
+        # Disable built-in enrichment since we already ran it above
+        enable_enrichment=False,
         artifact_dir=os.getenv("ARTIFACTS_DIR", str(Path("data") / "logs")),
     )
 
@@ -81,22 +105,28 @@ def run_agent_from_spec(
 
     def event_handler(event: OrchestratorEvent):
         events.append(event)
-        # Also print to server console
         Orchestrator._default_event_handler(event)
 
     # Get workflow
     try:
         workflow = get_workflow(workflow_name)
     except ValueError:
-        # Fallback to default
         workflow = get_workflow("default")
 
-    # Run
+    # Run with enriched spec + full context
     orch = Orchestrator(config=config, on_event=event_handler)
-    result = orch.run(spec=spec, workflow=workflow, context=context or {})
+    result = orch.run(spec=enriched_spec, workflow=workflow, context=context)
 
     # Convert RunResult → legacy response format (backward compatible)
     response = _to_legacy_response(result)
+
+    # Attach understanding summary to response for visibility
+    response["understanding"] = {
+        "login_wall_detected": context.get("login_wall_detected", False),
+        "user_scenario_count": len(context.get("user_scenarios", [])),
+        "base_url": context.get("base_url"),
+        "recon_status": context.get("recon_status"),
+    }
 
     # Save run history for dashboard
     _save_run_history({
@@ -112,6 +142,8 @@ def run_agent_from_spec(
         "xlsx": result.artifacts.get("xlsx"),
         "run_json": result.artifacts.get("run_json"),
         "report_json": result.artifacts.get("report_json"),
+        "login_wall_detected": context.get("login_wall_detected", False),
+        "user_scenario_count": len(context.get("user_scenarios", [])),
     })
 
     # Attach trace if requested
@@ -137,7 +169,13 @@ def _to_legacy_response(result: RunResult) -> dict:
         "skipped": result.skipped,
         "results": [
             {
-                "step": {"tool": s.tool, "index": s.step_index},
+                "step": {
+                    "tool": s.tool,
+                    "index": s.step_index,
+                    "args": (result.plan.get("steps") or [{}])[s.step_index].get("args", {})
+                    if s.step_index < len(result.plan.get("steps") or [])
+                    else {},
+                },
                 "result": s.output,
                 "status": s.status,
                 "error": s.error,

@@ -1,7 +1,8 @@
-import os
+
 # tenancy/rbac.py
 from __future__ import annotations
 
+import os
 import json
 from dataclasses import dataclass
 from functools import lru_cache

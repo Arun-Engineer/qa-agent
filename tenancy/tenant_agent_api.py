@@ -135,6 +135,53 @@ def _serve_agent_ui(request: Request) -> HTMLResponse | RedirectResponse:
 # -------------------------
 # UI routes (HTML)
 # -------------------------
+# ── Spec-Priority Fix: auto-detect workflow from spec content ──
+def _detect_workflow(spec: str, task_type: str = "") -> str:
+    """
+    Detect the right workflow from spec content.
+    Spec content ALWAYS wins over task_type from the UI dropdown.
+
+    Rules (in priority order):
+      1. If spec mentions cart/product/checkout/UI actions → ui_test
+      2. If spec mentions mobile/OTP/login credentials → ui_test
+         (credentials = auth prereq, NOT api test data)
+      3. Only use api_test if spec is purely about REST endpoints
+         with NO browser/UI signals AND no URL present
+    """
+    import re as _re
+    spec_lower = spec.lower()
+    has_url = bool(_re.search(r"https?://", spec))
+
+    # Strong UI signals — any of these overrides task_type
+    strong_ui = ["cart", "checkout", "add to cart", "product", "shop",
+                 "jiomart", "flipkart", "amazon", "swiggy", "zomato",
+                 "click", "button", "page", "navigate", "browser",
+                 "playwright", "search result", "category", "coupon",
+                 "promo", "quantity", "wishlist", "order"]
+
+    # Credential signals — means auth prereq needed → ui_test
+    cred_signals = ["mobile:", "otp:", "phone:", "password:", "login credential",
+                    "username:", "use this login", "credentials if required"]
+
+    ui_score  = sum(1 for kw in strong_ui   if kw in spec_lower)
+    cred_score = sum(1 for kw in cred_signals if kw in spec_lower)
+
+    api_signals = ["api", "endpoint", "rest", "graphql", "curl",
+                   "json response", "status code", "http method",
+                   "request body", "response schema"]
+    api_score = sum(1 for kw in api_signals if kw in spec_lower)
+
+    # Credentials or UI keywords → always ui_test
+    if cred_score > 0 or ui_score > 0 or has_url:
+        return "ui_test"
+
+    # Pure API spec with no URL and no UI signals
+    if api_score > 0 and not has_url:
+        return "api_test"
+
+    return "ui_test"  # safe default
+# ──────────────────────────────────────────────────────────────
+
 @router.get("/agent-ui", include_in_schema=False)
 def agent_ui(request: Request):
     return _serve_agent_ui(request)
@@ -390,6 +437,24 @@ async def run_agent_endpoint(
     html = bool(body.get("html", False))
     trace = bool(body.get("trace", False))
     use_rag = bool(body.get("use_rag", True))
+
+    # ── Credentials from spec (mobile, OTP, pincode, URL) ────────
+    # Read from request body — set as env vars for this run only.
+    # Never stored in .env — ephemeral per-request only.
+    creds_from_spec = body.get("creds") or {}
+    _cred_env_backup = {}
+    cred_map = {
+        "mobile":  ("JIOMART_PHONE",   "TEST_MOBILE"),
+        "otp":     ("JIOMART_OTP",     "TEST_OTP"),
+        "pincode": ("JIOMART_PINCODE", "TEST_PINCODE"),
+        "url":     ("JIOMART_URL",     "APP_BASE_URL"),
+    }
+    for cred_key, env_keys in cred_map.items():
+        val = str(creds_from_spec.get(cred_key) or "").strip()
+        if val:
+            for env_key in env_keys:
+                _cred_env_backup[env_key] = os.environ.get(env_key, "")
+                os.environ[env_key] = val
     run_env = _normalize_env(body.get("environment") or request.session.get("active_env") or "UAT")
 
     role = str(session.get("role") or request.session.get("role") or "viewer").lower()
@@ -418,7 +483,21 @@ async def run_agent_endpoint(
     if not spec:
         raise HTTPException(status_code=400, detail="Provide either 'spec' or 'spec_id'")
 
-    result = run_agent_from_spec(spec, html=html, trace=trace)
+    workflow_name = _detect_workflow(spec, task_type=task_type)
+    try:
+        result = run_agent_from_spec(
+            spec,
+            html=html,
+            trace=trace,
+            workflow_name=workflow_name,
+        )
+    finally:
+        # Restore env vars after run (creds are ephemeral)
+        for env_key, old_val in _cred_env_backup.items():
+            if old_val:
+                os.environ[env_key] = old_val
+            else:
+                os.environ.pop(env_key, None)
 
     db = SessionLocal()
     try:
@@ -614,6 +693,234 @@ def llm_config_page(request: Request, session=Depends(require_session)):
         raise HTTPException(status_code=404, detail="admin.html not found in templates/")
     return HTMLResponse(html_path.read_text(encoding="utf-8"))
 
+
+
+
+# ═══════════════════════════════════════════════════════════════
+# LLM Config API — GET endpoints (fixes "Failed to load LLM config")
+# ═══════════════════════════════════════════════════════════════
+
+import time as _time
+import httpx as _httpx
+
+_llm_model_cache = {"openai": [], "ts": 0, "ttl": 3600}
+
+
+def _load_llm_yaml() -> dict:
+    """Load config/llm.yaml — the source of truth for LLM settings."""
+    import yaml
+    yaml_path = Path("config/llm.yaml")
+    if not yaml_path.exists():
+        return {"default_provider": "openai", "providers": {}, "available_models": {}}
+    try:
+        return yaml.safe_load(yaml_path.read_text(encoding="utf-8")) or {}
+    except Exception:
+        return {}
+
+
+def _fetch_openai_models_live() -> list:
+    """Fetch live model list from OpenAI API — includes new models automatically."""
+    api_key = (os.getenv("OPENAI_API_KEY") or "").strip()
+    if not api_key:
+        return []
+    try:
+        resp = _httpx.get(
+            "https://api.openai.com/v1/models",
+            headers={"Authorization": f"Bearer {api_key}"},
+            timeout=6.0,
+        )
+        resp.raise_for_status()
+        raw = resp.json().get("data", [])
+        # Keep only chat-suitable models
+        exclude = ("embedding", "tts", "whisper", "dall-e", "davinci",
+                   "babbage", "ada", "curie", "instruct", "realtime",
+                   "audio", "search", "moderation")
+        keep_prefix = ("gpt-", "o1", "o2", "o3", "o4", "o5")
+        models = [
+            m["id"] for m in raw
+            if any(m["id"].startswith(p) for p in keep_prefix)
+            and not any(ex in m["id"] for ex in exclude)
+        ]
+        models.sort(reverse=True)
+        return models
+    except Exception:
+        return []
+
+
+def _get_models_for_provider(provider: str) -> list:
+    """Return model list — live from OpenAI API (cached 1h) or from llm.yaml."""
+    cfg = _load_llm_yaml()
+    yaml_models = cfg.get("available_models", {}).get(provider, [])
+
+    if provider == "openai":
+        now = _time.time()
+        cache = _llm_model_cache
+        if cache["openai"] and (now - cache["ts"]) < cache["ttl"]:
+            return cache["openai"]
+        live = _fetch_openai_models_live()
+        if live:
+            cache["openai"] = live
+            cache["ts"]     = now
+            return live
+        # Fallback to yaml list
+        return yaml_models or ["gpt-4o-mini", "gpt-4o", "gpt-4-turbo", "o1-mini", "o1"]
+
+    return yaml_models
+
+
+@router.get("/api/settings/provider")
+async def get_llm_config(request: Request, user=Depends(get_session_user)):
+    """
+    Returns current LLM provider + model config.
+    Frontend calls this on Admin page load.
+    Previously missing — caused 'Failed to load LLM config: Not Found'.
+    """
+    cfg      = _load_llm_yaml()
+    provider = cfg.get("default_provider", "openai")
+    p_cfg    = cfg.get("providers", {}).get(provider, {})
+    model    = (
+        request.session.get("active_model")
+        or p_cfg.get("model")
+        or os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+    )
+    temp = p_cfg.get("temperature", 0.2)
+    return {
+        "provider":    provider,
+        "model":       model,
+        "temperature": temp,
+        "available_models": _get_models_for_provider(provider),
+    }
+
+
+@router.get("/api/models")
+async def list_models(provider: str = "openai", request: Request = None,
+                      user=Depends(get_session_user)):
+    """
+    Returns live model list for provider.
+    OpenAI: fetched from API (cached 1h) — new models appear automatically.
+    Others: from config/llm.yaml.
+    """
+    models = _get_models_for_provider(provider)
+    source = "live" if provider == "openai" and _llm_model_cache["openai"] else "yaml"
+    return {"provider": provider, "models": models, "source": source}
+
+
+@router.post("/api/models/refresh")
+async def refresh_models(provider: str = "openai", user=Depends(get_session_user)):
+    """Force-refresh the live model cache."""
+    _llm_model_cache["ts"] = 0  # expire cache
+    models = _get_models_for_provider(provider)
+    return {"provider": provider, "models": models, "refreshed": True}
+
+# ═══════════════════════════════════════════════════════════════
+
+
+# ── GET /api/llm/info — required by app.js loadLLMConfig() ───
+@router.get("/api/llm/info")
+async def get_llm_info(request: Request, user=Depends(get_session_user)):
+    """
+    Returns current LLM provider, model, and all available models.
+    Called by app.js on Admin page load.
+    Fetches live model list from OpenAI API (cached 1h) so new models
+    like gpt-5.x appear automatically without any code changes.
+    """
+    import time as _t
+    import yaml as _yaml
+
+    # ── Load llm.yaml for defaults + fallback model lists ────
+    def _load_yaml():
+        p = Path("config/llm.yaml")
+        if not p.exists():
+            return {}
+        try:
+            return _yaml.safe_load(p.read_text(encoding="utf-8")) or {}
+        except Exception:
+            return {}
+
+    # ── Fetch live OpenAI models (cached 1 hour) ─────────────
+    _cache = getattr(get_llm_info, "_cache", {"models": [], "ts": 0})
+    get_llm_info._cache = _cache
+
+    def _live_openai_models():
+        now = _t.time()
+        if _cache["models"] and now - _cache["ts"] < 3600:
+            return _cache["models"]
+        api_key = (os.getenv("OPENAI_API_KEY") or "").strip()
+        if not api_key:
+            return []
+        try:
+            import httpx
+            resp = httpx.get(
+                "https://api.openai.com/v1/models",
+                headers={"Authorization": f"Bearer {api_key}"},
+                timeout=6.0,
+            )
+            resp.raise_for_status()
+            exclude = ("embedding","tts","whisper","dall-e","davinci",
+                       "babbage","ada","curie","instruct","realtime",
+                       "audio","search","moderation")
+            prefixes = ("gpt-","o1","o2","o3","o4","o5")
+            models = sorted(
+                [m["id"] for m in resp.json().get("data", [])
+                 if any(m["id"].startswith(p) for p in prefixes)
+                 and not any(e in m["id"] for e in exclude)],
+                reverse=True
+            )
+            _cache["models"] = models
+            _cache["ts"]     = now
+            return models
+        except Exception:
+            return []
+
+    cfg      = _load_yaml()
+    provider = (
+        request.session.get("active_provider")
+        or cfg.get("default_provider", "openai")
+    )
+    p_cfg    = cfg.get("providers", {}).get(provider, {})
+    model    = (
+        request.session.get("active_model")
+        or p_cfg.get("model")
+        or os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+    )
+
+    # ── Build available_models dict ───────────────────────────
+    yaml_openai    = cfg.get("available_models", {}).get("openai", [])
+    yaml_anthropic = cfg.get("available_models", {}).get("anthropic", [])
+
+    live_openai = _live_openai_models()
+    openai_models = live_openai or yaml_openai or [
+        "gpt-4o-mini", "gpt-4o", "gpt-4-turbo",
+        "o1-mini", "o1", "o3-mini",
+    ]
+    anthropic_models = yaml_anthropic or [
+        "claude-opus-4-5",
+        "claude-sonnet-4-5",
+        "claude-haiku-4-5-20251001",
+        "claude-sonnet-4-20250514",
+        "claude-opus-4-20250514",
+    ]
+
+    # ── Detect which providers have API keys configured ───────
+    available_providers = []
+    if os.getenv("OPENAI_API_KEY"):
+        available_providers.append("openai")
+    if os.getenv("ANTHROPIC_API_KEY"):
+        available_providers.append("anthropic")
+    if not available_providers:
+        available_providers = [provider]  # show current even if no key
+
+    return {
+        "current_provider":  provider,
+        "current_model":     model,
+        "available_providers": available_providers,
+        "available_models": {
+            "openai":    openai_models,
+            "anthropic": anthropic_models,
+        },
+        "source": "live" if live_openai else "yaml",
+    }
+# ─────────────────────────────────────────────────────────────
 
 @router.get("/{path:path}", include_in_schema=False)
 def spa_fallback(path: str, request: Request):

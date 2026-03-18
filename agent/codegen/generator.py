@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Optional
 
 from agent.utils.openai_wrapper import chat_completion
+from agent.tools.selector_discovery import get_selectors_for_spec
 
 
 class TestGenerator:

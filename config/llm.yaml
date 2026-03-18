@@ -6,6 +6,7 @@ default_provider: "openai"
 
 providers:
   openai:
+    - "o3-mini"
     # model: "gpt-4o-mini"          # cost-efficient default
     model: "gpt-4o-mini"
     max_tokens: 4096
@@ -14,6 +15,9 @@ providers:
     # base_url: ""                   # for Azure OpenAI or proxies
 
   anthropic:
+    - "claude-opus-4-5"
+    - "claude-sonnet-4-5"
+    - "claude-haiku-4-20250514"
     model: "claude-sonnet-4-20250514"
     max_tokens: 4096
     temperature: 0.2
@@ -53,7 +57,11 @@ available_models:
     - "gpt-4o"
     - "gpt-4-turbo"
     - "o1-mini"
+    - "o3-mini"
   anthropic:
     - "claude-sonnet-4-20250514"
     - "claude-haiku-4-5-20251001"
     - "claude-opus-4-20250514"
+    - "claude-opus-4-5"
+    - "claude-sonnet-4-5"
+    - "claude-haiku-4-20250514"

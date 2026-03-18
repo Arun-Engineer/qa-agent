@@ -42,7 +42,108 @@
     .nav-link:hover { text-decoration: underline; }
     .provider-icon { font-size: 1.2em; margin-right: 6px; }
     #test-result { margin-top: 10px; padding: 8px 12px; border-radius: 6px; font-size: 0.85em; display: none; }
-  </style>
+  
+/* ── LLM Model Dropdown Dark Theme ── */
+.model-select-wrapper { position: relative; }
+select#model-select,
+select[name="model"],
+.llm-model-select {
+    background-color: #0d1117 !important;
+    color: #e6edf3 !important;
+    border: 1px solid #30363d !important;
+    border-radius: 6px !important;
+    padding: 8px 32px 8px 12px !important;
+    font-size: 14px !important;
+    width: 100% !important;
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%236e7681' d='M1 1l5 5 5-5'/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 12px center !important;
+    cursor: pointer !important;
+    transition: border-color 0.2s ease !important;
+}
+select#model-select:hover,
+select[name="model"]:hover,
+.llm-model-select:hover {
+    border-color: #58a6ff !important;
+}
+select#model-select:focus,
+select[name="model"]:focus,
+.llm-model-select:focus {
+    outline: none !important;
+    border-color: #58a6ff !important;
+    box-shadow: 0 0 0 3px rgba(88,166,255,0.15) !important;
+}
+select#model-select option,
+select[name="model"] option,
+.llm-model-select option {
+    background-color: #161b22 !important;
+    color: #e6edf3 !important;
+    padding: 8px !important;
+}
+.model-refresh-btn {
+    background: transparent !important;
+    border: 1px solid #30363d !important;
+    border-radius: 6px !important;
+    color: #8b949e !important;
+    padding: 6px 10px !important;
+    cursor: pointer !important;
+    font-size: 12px !important;
+    margin-left: 8px !important;
+    transition: all 0.2s ease !important;
+}
+.model-refresh-btn:hover {
+    border-color: #58a6ff !important;
+    color: #58a6ff !important;
+}
+.model-source-badge {
+    font-size: 11px !important;
+    color: #3fb950 !important;
+    margin-left: 8px !important;
+}
+.model-source-badge.static { color: #8b949e !important; }
+
+
+/* LLM Dropdown Dark Fix */
+select, .llm-select {
+    background-color: #0d1117 !important;
+    color: #e6edf3 !important;
+    border: 1px solid #30363d !important;
+    border-radius: 6px !important;
+    padding: 8px 36px 8px 12px !important;
+    font-size: 14px !important;
+    width: 100% !important;
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    cursor: pointer !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%236e7681' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 12px center !important;
+    transition: border-color 0.15s ease !important;
+}
+select:hover, .llm-select:hover { border-color: #58a6ff !important; }
+select:focus, .llm-select:focus {
+    outline: none !important;
+    border-color: #58a6ff !important;
+    box-shadow: 0 0 0 3px rgba(88,166,255,0.15) !important;
+}
+select option, .llm-select option {
+    background-color: #161b22 !important;
+    color: #e6edf3 !important;
+}
+optgroup { background: #0d1117 !important; color: #8b949e !important; font-size: 11px !important; }
+.llm-source { font-size: 11px; color: #3fb950; margin-left: 6px; }
+.llm-source.static { color: #8b949e; }
+.btn-refresh-models {
+    background: transparent; border: 1px solid #30363d;
+    border-radius: 6px; color: #8b949e; padding: 5px 10px;
+    font-size: 12px; cursor: pointer; margin-left: 8px;
+    transition: all 0.15s ease;
+}
+.btn-refresh-models:hover { border-color: #58a6ff; color: #58a6ff; }
+
+</style>
 </head>
 <body>
   <div class="container">
@@ -268,5 +369,343 @@
     loadLLMInfo();
     loadMembers();
   </script>
+<script>
+
+/* ── Live Model Loader ── */
+(function() {
+    const CACHE_KEY   = 'qa_agent_models_cache';
+    const CACHE_TTL   = 3600 * 1000; // 1 hour in ms
+
+    function getCached(provider) {
+        try {
+            const raw = sessionStorage.getItem(CACHE_KEY + '_' + provider);
+            if (!raw) return null;
+            const { models, ts } = JSON.parse(raw);
+            if (Date.now() - ts > CACHE_TTL) return null;
+            return models;
+        } catch { return null; }
+    }
+
+    function setCache(provider, models) {
+        try {
+            sessionStorage.setItem(
+                CACHE_KEY + '_' + provider,
+                JSON.stringify({ models, ts: Date.now() })
+            );
+        } catch {}
+    }
+
+    function buildOptions(select, models, currentModel) {
+        select.innerHTML = '';
+        // Group models
+        const groups = {};
+        models.forEach(m => {
+            if (!groups[m.group]) groups[m.group] = [];
+            groups[m.group].push(m);
+        });
+        Object.entries(groups).forEach(([groupName, items]) => {
+            const og = document.createElement('optgroup');
+            og.label = groupName;
+            items.forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m.id;
+                opt.textContent = m.label || m.id;
+                if (m.id === currentModel) opt.selected = true;
+                og.appendChild(opt);
+            });
+            select.appendChild(og);
+        });
+    }
+
+    function updateSourceBadge(badge, source) {
+        if (!badge) return;
+        badge.textContent = source === 'live' ? '● Live' : '○ Cached';
+        badge.className = 'model-source-badge' + (source === 'live' ? '' : ' static');
+        badge.title = source === 'live'
+            ? 'Model list fetched live from OpenAI — includes latest models'
+            : 'Using cached model list';
+    }
+
+    async function loadModels(provider, select, badge, forceRefresh) {
+        if (!select) return;
+
+        provider = provider || 'openai';
+        const currentModel = select.value || select.dataset.current || 'gpt-4o-mini';
+
+        // Try cache first (unless force refresh)
+        if (!forceRefresh) {
+            const cached = getCached(provider);
+            if (cached) {
+                buildOptions(select, cached, currentModel);
+                updateSourceBadge(badge, 'cached');
+                return;
+            }
+        }
+
+        // Show loading state
+        select.innerHTML = '<option disabled selected>Loading models...</option>';
+
+        try {
+            const endpoint = forceRefresh
+                ? `/api/models/refresh?provider=${provider}`
+                : `/api/models?provider=${provider}`;
+
+            const method = forceRefresh ? 'POST' : 'GET';
+            const resp = await fetch(endpoint, { method });
+
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const data = await resp.json();
+
+            const models = data.models || [];
+            setCache(provider, models);
+            buildOptions(select, models, currentModel);
+            updateSourceBadge(badge, data.source || 'live');
+        } catch (err) {
+            console.warn('Model fetch failed, using fallback:', err);
+            // Restore fallback options
+            const fallback = [
+                { id: 'gpt-4o-mini', label: 'GPT-4o Mini', group: 'GPT-4o' },
+                { id: 'gpt-4o',      label: 'GPT-4o',      group: 'GPT-4o' },
+                { id: 'gpt-4-turbo', label: 'GPT-4 Turbo', group: 'GPT-4'  },
+                { id: 'o1-mini',     label: 'o1 Mini',      group: 'Reasoning' },
+                { id: 'o1',          label: 'o1',           group: 'Reasoning' },
+            ];
+            buildOptions(select, fallback, currentModel);
+            updateSourceBadge(badge, 'static');
+        }
+    }
+
+    function initModelDropdowns() {
+        // Find all model selects on the page
+        const selects = document.querySelectorAll(
+            'select#model-select, select[name="model"], .llm-model-select, #llm-model'
+        );
+
+        selects.forEach(select => {
+            select.classList.add('llm-model-select');
+
+            // Find associated provider select
+            const form = select.closest('form') || select.closest('.llm-config') || document;
+            const providerSelect = form.querySelector(
+                'select[name="provider"], #provider-select, .provider-select'
+            );
+
+            // Find or create source badge
+            let badge = select.parentElement.querySelector('.model-source-badge');
+            if (!badge) {
+                badge = document.createElement('span');
+                badge.className = 'model-source-badge';
+                select.parentElement.appendChild(badge);
+            }
+
+            // Find or create refresh button
+            let refreshBtn = select.parentElement.querySelector('.model-refresh-btn');
+            if (!refreshBtn) {
+                refreshBtn = document.createElement('button');
+                refreshBtn.type = 'button';
+                refreshBtn.className = 'model-refresh-btn';
+                refreshBtn.title = 'Refresh model list from OpenAI';
+                refreshBtn.innerHTML = '↻ Refresh';
+                select.parentElement.appendChild(refreshBtn);
+            }
+
+            const provider = providerSelect ? providerSelect.value : 'openai';
+            loadModels(provider, select, badge, false);
+
+            // Reload when provider changes
+            if (providerSelect) {
+                providerSelect.addEventListener('change', () => {
+                    loadModels(providerSelect.value, select, badge, false);
+                });
+            }
+
+            // Force refresh on button click
+            refreshBtn.addEventListener('click', () => {
+                const p = providerSelect ? providerSelect.value : 'openai';
+                loadModels(p, select, badge, true);
+            });
+        });
+    }
+
+    // Init on DOM ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initModelDropdowns);
+    } else {
+        initModelDropdowns();
+    }
+})();
+
+</script>
+<script>
+/* Live Model Loader — auto-syncs with OpenAI releases */
+(function initLLMAdmin() {
+    const SESS_KEY = 'qa_llm_models';
+    const TTL_MS   = 3600 * 1000;
+
+    function cachedModels(provider) {
+        try {
+            const d = JSON.parse(sessionStorage.getItem(SESS_KEY + provider) || 'null');
+            return d && Date.now() - d.ts < TTL_MS ? d.models : null;
+        } catch { return null; }
+    }
+
+    function cacheModels(provider, models) {
+        try { sessionStorage.setItem(SESS_KEY + provider, JSON.stringify({models, ts: Date.now()})); } catch {}
+    }
+
+    function populateSelect(sel, models, current) {
+        sel.innerHTML = '';
+        // Group by family
+        const groups = {};
+        models.forEach(m => {
+            const g = m.startsWith('o')       ? 'Reasoning'
+                    : m.includes('gpt-4o')    ? 'GPT-4o'
+                    : m.includes('gpt-4')     ? 'GPT-4'
+                    : m.includes('gpt-3')     ? 'GPT-3.5'
+                    : m.includes('claude')    ? 'Claude'
+                    : 'Other';
+            (groups[g] = groups[g] || []).push(m);
+        });
+        Object.entries(groups).forEach(([g, ms]) => {
+            const og = document.createElement('optgroup');
+            og.label = g;
+            ms.forEach(m => {
+                const o = document.createElement('option');
+                o.value = m; o.textContent = m;
+                if (m === current) o.selected = true;
+                og.appendChild(o);
+            });
+            sel.appendChild(og);
+        });
+    }
+
+    function setBadge(badge, source) {
+        if (!badge) return;
+        badge.textContent = source === 'live' ? '● live' : '● cached';
+        badge.className   = 'llm-source' + (source === 'live' ? '' : ' static');
+        badge.title       = source === 'live'
+            ? 'Models fetched live from OpenAI API — new models appear automatically'
+            : 'Using cached model list';
+    }
+
+    async function loadModels(provider, sel, badge, force) {
+        if (!sel) return;
+        provider = provider || 'openai';
+        const current = sel.value || sel.dataset.model || 'gpt-4o-mini';
+
+        if (!force) {
+            const cached = cachedModels(provider);
+            if (cached) { populateSelect(sel, cached, current); setBadge(badge, 'cached'); return; }
+        }
+
+        sel.innerHTML = '<option disabled>Loading...</option>';
+        try {
+            const url  = force ? `/api/models/refresh` : `/api/models?provider=${provider}`;
+            const meth = force ? 'POST' : 'GET';
+            const res  = await fetch(url, {method: meth, headers: {'Content-Type': 'application/json'},
+                                          body: force ? JSON.stringify({provider}) : undefined});
+            if (!res.ok) throw new Error(res.status);
+            const data   = await res.json();
+            const models = data.models || [];
+            cacheModels(provider, models);
+            populateSelect(sel, models, current);
+            setBadge(badge, data.source || 'live');
+        } catch (e) {
+            console.warn('Model fetch failed:', e);
+            // Graceful fallback
+            const fallback = provider === 'anthropic'
+                ? ['claude-opus-4-5','claude-sonnet-4-5','claude-haiku-4-5-20251001']
+                : ['gpt-4o-mini','gpt-4o','gpt-4-turbo','o1-mini','o1','o3-mini'];
+            populateSelect(sel, fallback, current);
+            setBadge(badge, 'static');
+        }
+    }
+
+    async function loadLLMConfig() {
+        try {
+            const res = await fetch('/api/settings/provider');
+            if (!res.ok) throw new Error(res.status);
+            const cfg = await res.json();
+
+            // Set provider dropdown
+            const provSel = document.querySelector('select[name="provider"], #provider-select, .provider-select');
+            if (provSel && cfg.provider) {
+                provSel.value = cfg.provider;
+                provSel.dispatchEvent(new Event('change'));
+            }
+
+            // Set model dropdown
+            const modSel = document.querySelector('select[name="model"], #model-select, .model-select');
+            if (modSel && cfg.model) {
+                modSel.dataset.model = cfg.model;
+                // Wait for model list to populate then select
+                setTimeout(() => { if (modSel.querySelector(`option[value="${cfg.model}"]`)) modSel.value = cfg.model; }, 800);
+            }
+
+            // Set temperature slider
+            const temp = document.querySelector('input[name="temperature"], #temperature-slider, input[type="range"]');
+            if (temp && cfg.temperature != null) {
+                temp.value = cfg.temperature;
+                temp.dispatchEvent(new Event('input'));
+            }
+
+            // Hide error message if visible
+            document.querySelectorAll('.llm-error, [class*="error"]').forEach(el => {
+                if (el.textContent.includes('Failed to load LLM')) el.style.display = 'none';
+            });
+        } catch (e) {
+            console.warn('LLM config load failed:', e);
+        }
+    }
+
+    function init() {
+        // Find all model selects
+        const modSelects = document.querySelectorAll('select[name="model"], #model-select, .model-select, #llm-model');
+        modSelects.forEach(sel => {
+            sel.classList.add('llm-select');
+            const wrapper = sel.parentElement;
+
+            // Add source badge
+            let badge = wrapper.querySelector('.llm-source');
+            if (!badge) {
+                badge = document.createElement('span');
+                badge.className = 'llm-source';
+                wrapper.appendChild(badge);
+            }
+
+            // Add refresh button
+            let btn = wrapper.querySelector('.btn-refresh-models');
+            if (!btn) {
+                btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'btn-refresh-models';
+                btn.textContent = '↻ Refresh';
+                btn.title = 'Fetch latest models from OpenAI API';
+                wrapper.appendChild(btn);
+                btn.addEventListener('click', () => {
+                    const prov = (document.querySelector('select[name="provider"], .provider-select') || {}).value || 'openai';
+                    loadModels(prov, sel, badge, true);
+                });
+            }
+
+            // Load models
+            const provSel = document.querySelector('select[name="provider"], #provider-select, .provider-select');
+            const provider = provSel ? provSel.value : 'openai';
+            loadModels(provider, sel, badge, false);
+
+            // Reload on provider change
+            if (provSel) {
+                provSel.addEventListener('change', () => loadModels(provSel.value, sel, badge, false));
+            }
+        });
+
+        // Load full config (fixes "Failed to load LLM config")
+        loadLLMConfig();
+    }
+
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+    else init();
+})();
+</script>
 </body>
 </html>
