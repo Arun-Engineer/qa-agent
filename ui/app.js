@@ -547,6 +547,16 @@ async function runSpec() {
     const artifacts = pickArtifacts(data);
     const failed = data.failed ?? 0;
 
+    // Auto-clear spec text after successful run
+    if (failed === 0) {
+      const specEl = document.getElementById("specInput");
+      if (specEl) specEl.value = "";
+      const fileEl = document.getElementById("specFile");
+      if (fileEl) fileEl.value = "";
+      const fileNameEl = document.getElementById("specFileName");
+      if (fileNameEl) fileNameEl.textContent = "No file selected";
+    }
+
     resultDiv.innerHTML = `
       <div class="card card-run">
         <div class="card-head">
@@ -1201,7 +1211,12 @@ async function loadLLMConfig() {
 
   try {
     const info = await fetchJson("/api/llm/info");
-    llmAllModels = info.available_models || {};
+    llmAllModels = info.models_by_provider || {};
+    // Merge role-based permissions
+    try {
+      const perms = await fetchJson("/api/llm/model-permissions");
+      if (perms && perms.allowed) Object.assign(llmAllModels, perms.allowed);
+    } catch (_) {}
 
     // Set provider dropdown
     const provSel = document.getElementById("llmProvider");

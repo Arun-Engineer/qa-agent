@@ -816,6 +816,78 @@ async def refresh_models(provider: str = "openai", user=Depends(get_session_user
 
 
 # ── GET /api/llm/info — required by app.js loadLLMConfig() ───
+
+@router.get("/api/llm/model-permissions")
+async def get_model_permissions(request: Request, db=Depends(get_db)):
+    """Get allowed models for current user's role."""
+    session = request.session
+    role = str(session.get("role") or "viewer").lower()
+    tenant_id = session.get("tenant_id")
+
+    perms_file = Path("data/model_permissions.json")
+    if not perms_file.exists():
+        return JSONResponse({"role": role, "allowed": {"openai": ["gpt-4o-mini"], "anthropic": []}})
+
+    perms = json.loads(perms_file.read_text(encoding="utf-8"))
+
+    # Check team-specific override first
+    team_perms = perms.get("teams", {}).get(str(tenant_id), None)
+    if team_perms:
+        allowed = team_perms
+    else:
+        # Fall back to role-based permissions
+        allowed = perms.get("roles", {}).get(role, perms["roles"].get("viewer", {}))
+
+    # Fetch live models and filter by allowed list
+    openai_live = _fetch_openai_models()
+    anthropic_live = _fetch_anthropic_models()
+
+    def filter_models(live, allowed_list):
+        if allowed_list == ["*"]:
+            return live
+        return [m for m in live if any(a in m for a in allowed_list)]
+
+    return JSONResponse({
+        "role": role,
+        "allowed": {
+            "openai": filter_models(openai_live, allowed.get("openai", [])),
+            "anthropic": filter_models(anthropic_live, allowed.get("anthropic", []))
+        }
+    })
+
+
+@router.post("/api/llm/model-permissions")
+async def set_model_permissions(request: Request, db=Depends(get_db)):
+    """Admin: set allowed models for a team or role."""
+    session = request.session
+    role = str(session.get("role") or "viewer").lower()
+    if role not in ("super_admin", "admin", "owner"):
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    body = await request.json()
+    target_role = body.get("role")
+    target_team = body.get("team_id")
+    allowed_openai = body.get("openai", [])
+    allowed_anthropic = body.get("anthropic", [])
+
+    perms_file = Path("data/model_permissions.json")
+    perms = json.loads(perms_file.read_text(encoding="utf-8")) if perms_file.exists() else {"roles": {}, "teams": {}}
+
+    if target_team:
+        perms.setdefault("teams", {})[str(target_team)] = {
+            "openai": allowed_openai,
+            "anthropic": allowed_anthropic
+        }
+    elif target_role:
+        perms.setdefault("roles", {})[target_role] = {
+            "openai": allowed_openai,
+            "anthropic": allowed_anthropic
+        }
+
+    perms_file.write_text(json.dumps(perms, indent=2), encoding="utf-8")
+    return JSONResponse({"status": "saved", "permissions": perms})
+
+
 @router.get("/api/llm/info")
 async def get_llm_info(request: Request, user=Depends(get_session_user)):
     """
