@@ -1211,7 +1211,12 @@ async function loadLLMConfig() {
 
   try {
     const info = await fetchJson("/api/llm/info");
-    llmAllModels = info.models_by_provider || {};
+    // available_models from API is already {openai: [...], anthropic: [...]}
+    const _am = info.available_models;
+    const _byProv = info.models_by_provider ||
+      (_am && typeof _am === 'object' && Array.isArray(_am) === false ? _am : 
+       {[info.current_provider || 'openai']: Array.isArray(_am) ? _am : []});
+    llmAllModels = _byProv;
     // Merge role-based permissions
     try {
       const perms = await fetchJson("/api/llm/model-permissions");
