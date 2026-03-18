@@ -91,3 +91,14 @@ files/
 .archive
 .pytest_cache
 
+
+# Browser profile and session data
+data/browser_profile/
+data/jiomart_auth_state.json
+data/logs/
+data/*.json
+*.bak_*
+creds_patch/
+ui_fix/
+final_fix/
+codegen_pkg/
