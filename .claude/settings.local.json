@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /d/Automation/qa_agent/.claude/worktrees/hopeful-robinson-7932ed -type f \\\\\\( -name \"*.py\" -o -name \"*.md\" \\\\\\) -exec grep -l \"16\\\\|sixteen\\\\|architecture\\\\|comprehensive\" {} \\\\;)",
+      "Bash(mkdir -p .claude/tmp-missing)",
+      "Bash(unzip -o missing-components-all.zip -d .claude/tmp-missing/)",
+      "Bash(xargs wc *)",
+      "Bash(cp /d/Automation/qa_agent/.claude/tmp-missing/components/hybrid_retriever.py /d/Automation/qa_agent/.claude/worktrees/hopeful-robinson-7932ed/src/rag/components/)",
+      "Bash(cp /d/Automation/qa_agent/.claude/tmp-missing/components/reranker.py /d/Automation/qa_agent/.claude/worktrees/hopeful-robinson-7932ed/src/rag/components/)",
+      "Bash(cp /d/Automation/qa_agent/.claude/tmp-missing/services/query_rewriter.py /d/Automation/qa_agent/.claude/worktrees/hopeful-robinson-7932ed/src/rag/services/)",
+      "Bash(cp /d/Automation/qa_agent/.claude/tmp-missing/services/query_router.py /d/Automation/qa_agent/.claude/worktrees/hopeful-robinson-7932ed/src/rag/services/)",
+      "Bash(cp /d/Automation/qa_agent/.claude/tmp-missing/services/semantic_cache.py /d/Automation/qa_agent/.claude/worktrees/hopeful-robinson-7932ed/src/rag/services/)",
+      "Bash(python -m pytest tests/rag/ -x --tb=short)",
+      "Bash(python -c ' *)",
+      "Bash(python -m pytest tests/rag/ -q)",
+      "Bash(python -m pytest tests/ -q --ignore=tests/rag)",
+      "Bash(python -m pytest tests/ --ignore=tests/rag --collect-only -q)",
+      "Bash(python -m pytest tests/ --ignore=tests/rag -x --tb=line -q)",
+      "Bash(python -m pytest tests/ --ignore=tests/rag --ignore=tests/integration/test_api_environments.py --tb=line -q)",
+      "Bash(python -m pytest tests/ --ignore=tests/rag --ignore=tests/integration/test_api_environments.py -q)",
+      "Bash(python -c \"from src.llm.compat import chat_completion; from src.rag.integration import get_input_guard, get_cost_tracker, get_tracer; print\\('imports ok'\\)\")",
+      "Bash(python -c \"import asgi; print\\('asgi ok, routes:', len\\(asgi.app.routes\\)\\)\")",
+      "Bash(pip install *)",
+      "Bash(python -c \"import langgraph; from langgraph.graph import StateGraph, START, END; print\\('langgraph ok:', langgraph.__version__\\)\")",
+      "Bash(python -c \"from langgraph.graph import StateGraph, START, END; from langgraph.checkpoint.memory import MemorySaver; print\\('graph ok'\\)\")",
+      "Bash(mkdir -p _broken_backup)",
+      "Bash(cp agent/utils/openai_wrapper.py templates/base.html tenancy/deps.py tenancy/rbac.py tenancy/tenant_agent_api.py ui/app.js ui/index.html ui/style.css _broken_backup/)"
+    ]
+  }
+}

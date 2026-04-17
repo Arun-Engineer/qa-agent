@@ -121,6 +121,14 @@ tenant_app.include_router(llm_settings_router, tags=["LLM Settings"])
 from src.api.routes.cognitive import router as cognitive_router
 tenant_app.include_router(cognitive_router, prefix="/api/v1/cognitive", tags=["Cognitive"])
 
+# Phase 4: RAG / Guardrails / Observability pack (additive, opt-in)
+from src.api.routes.rag import router as rag_router
+tenant_app.include_router(rag_router, prefix="/api/v1/rag", tags=["RAG"])
+
+# Phase 5: LangGraph agent streaming (SSE)
+from src.api.routes.agents_stream import router as agents_stream_router
+tenant_app.include_router(agents_stream_router, prefix="/api/v1/agents", tags=["Agents"])
+
 # Agent APIs — LAST because it has /{path:path} catch-all
 tenant_app.include_router(agent_api_router)
 

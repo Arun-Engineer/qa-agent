@@ -1,0 +1,98 @@
+{
+  "cases": [
+    {
+      "id": "golden_001",
+      "category": "ui_test",
+      "input_spec": "Test login page: valid credentials redirect, invalid show error, empty fields show validation",
+      "expected_output": {
+        "min_scenarios": 3,
+        "must_include": [
+          "valid_login",
+          "invalid_login",
+          "empty_fields"
+        ]
+      },
+      "metadata": {},
+      "tags": [
+        "login",
+        "authentication"
+      ]
+    },
+    {
+      "id": "golden_002",
+      "category": "ui_test",
+      "input_spec": "Test cart: add item, update quantity, remove item, apply coupon, checkout",
+      "expected_output": {
+        "min_scenarios": 5,
+        "must_include": [
+          "add_to_cart",
+          "update_quantity",
+          "remove_item",
+          "coupon",
+          "checkout"
+        ],
+        "login_as_prerequisite": true
+      },
+      "metadata": {},
+      "tags": [
+        "cart",
+        "e-commerce"
+      ]
+    },
+    {
+      "id": "golden_003",
+      "category": "spec_review",
+      "input_spec": "The system shall allow users to log in.",
+      "expected_output": {
+        "should_flag_ambiguity": true,
+        "min_dimensions_scored": 5
+      },
+      "metadata": {},
+      "tags": [
+        "spec_review",
+        "ambiguous"
+      ]
+    },
+    {
+      "id": "golden_004",
+      "category": "api_test",
+      "input_spec": "Test POST /api/users: create user, reject duplicate email, validate fields, check 201",
+      "expected_output": {
+        "min_scenarios": 4,
+        "must_include": [
+          "create_user",
+          "duplicate_email",
+          "validation",
+          "status_code"
+        ]
+      },
+      "metadata": {},
+      "tags": [
+        "api",
+        "crud"
+      ]
+    },
+    {
+      "id": "golden_005",
+      "category": "ui_test",
+      "input_spec": "Test behind login wall: navigate to example.com, login, then test dashboard widgets: chart, date filter, export CSV",
+      "expected_output": {
+        "min_scenarios": 4,
+        "login_as_prerequisite": true,
+        "must_include": [
+          "login_step",
+          "chart_rendering",
+          "date_filter",
+          "csv_export"
+        ],
+        "must_not_only_test_login": true
+      },
+      "metadata": {},
+      "tags": [
+        "login_wall",
+        "dashboard",
+        "authenticated"
+      ]
+    }
+  ]
+}

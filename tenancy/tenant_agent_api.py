@@ -484,6 +484,19 @@ async def run_agent_endpoint(
         raise HTTPException(status_code=400, detail="Provide either 'spec' or 'spec_id'")
 
     workflow_name = _detect_workflow(spec, task_type=task_type)
+
+    # ── Live-progress wiring ───────────────────────────────────────────
+    # If the client opened an SSE progress channel with X-Progress-Id,
+    # activate the bus so workflow code can emit stage labels.
+    progress_id = request.headers.get("X-Progress-Id") or body.get("progress_id")
+    if progress_id:
+        try:
+            from src.agents import progress_bus
+            progress_bus.activate(progress_id)
+            progress_bus.emit("run_start", workflow_name)
+        except Exception:
+            progress_id = None
+
     try:
         result = run_agent_from_spec(
             spec,
@@ -492,6 +505,15 @@ async def run_agent_endpoint(
             workflow_name=workflow_name,
         )
     finally:
+        # Close the progress channel (sends sentinel → SSE gen terminates).
+        if progress_id:
+            try:
+                from src.agents import progress_bus
+                progress_bus.emit("run_end", workflow_name)
+                progress_bus.deactivate()
+                progress_bus.close(progress_id)
+            except Exception:
+                pass
         # Restore env vars after run (creds are ephemeral)
         for env_key, old_val in _cred_env_backup.items():
             if old_val:

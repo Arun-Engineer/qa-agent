@@ -23,15 +23,34 @@ def _ensure_registry():
     from agent.workflows.ui_test import UiTestWorkflow
     from agent.workflows.spec_review import SpecReviewWorkflow
     from agent.workflows.visual_qa import VisualQaWorkflow
+    from agent.workflows.test_case_gen import TestCaseGenerationWorkflow
+    try:
+        from agent.workflows.langgraph_test_gen import LangGraphTestGenWorkflow
+    except Exception:
+        LangGraphTestGenWorkflow = None  # type: ignore
+    try:
+        from agent.workflows.langgraph_spec_review import LangGraphSpecReviewWorkflow
+    except Exception:
+        LangGraphSpecReviewWorkflow = None  # type: ignore
+    try:
+        from agent.workflows.langgraph_api_test import LangGraphApiTestWorkflow
+    except Exception:
+        LangGraphApiTestWorkflow = None  # type: ignore
 
     _REGISTRY["api_test"] = ApiTestWorkflow
     _REGISTRY["ui_test"] = UiTestWorkflow
     _REGISTRY["spec_review"] = SpecReviewWorkflow
+    _REGISTRY["test_case_gen"] = TestCaseGenerationWorkflow
+    if LangGraphTestGenWorkflow is not None:
+        _REGISTRY["langgraph_test_gen"] = LangGraphTestGenWorkflow
+    if LangGraphSpecReviewWorkflow is not None:
+        _REGISTRY["langgraph_spec_review"] = LangGraphSpecReviewWorkflow
+    if LangGraphApiTestWorkflow is not None:
+        _REGISTRY["langgraph_api_test"] = LangGraphApiTestWorkflow
 
     _REGISTRY["visual_qa"] = VisualQaWorkflow
-    # Legacy aliases
-    # Legacy alias
-
+    # Legacy aliases — keep existing behaviour: generate_testcases used to mean
+    # "run API tests". New test_case_gen is the dedicated generator.
     _REGISTRY["generate_testcases"] = ApiTestWorkflow
     _REGISTRY["default"] = ApiTestWorkflow
 

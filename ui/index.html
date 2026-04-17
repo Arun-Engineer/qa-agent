@@ -146,10 +146,14 @@
         <div style="margin-bottom:10px">
           <label class="admin-label" style="margin-bottom:6px;display:block">Workflow</label>
           <div style="display:inline-flex;gap:12px;align-items:center">
-            <select id="workflowSelect" class="admin-select" style="width:280px" onchange="var d=document.getElementById('workflowDesc');if(d)d.textContent={'api_test':'Generate and execute API tests from a spec','ui_test':'Crawl site + generate Playwright browser tests','spec_review':'Analyze spec for gaps, ambiguity & testability (no execution)','visual_qa':'Screenshot pages and analyze visuals with GPT-4o vision'}[this.value]||''">
+            <select id="workflowSelect" class="admin-select" style="width:280px" onchange="var d=document.getElementById('workflowDesc');if(d)d.textContent={'api_test':'Generate and execute API tests from a spec','ui_test':'Crawl site + generate Playwright browser tests','spec_review':'Analyze spec for gaps, ambiguity & testability (no execution)','test_case_gen':'Generate structured test cases from a spec (no execution)','langgraph_test_gen':'LangGraph: parallel self-correcting test case generation','langgraph_spec_review':'LangGraph: parallel 5-dimensional spec review + synthesis','langgraph_api_test':'LangGraph: self-healing API tests (generate → run → diagnose → regenerate)','visual_qa':'Screenshot pages and analyze visuals with GPT-4o vision'}[this.value]||''">
               <option value="api_test">API Test Agent</option>
               <option value="ui_test">UI Test Agent</option>
               <option value="spec_review">Spec Review Agent</option>
+              <option value="test_case_gen">Test Case Generation Agent</option>
+              <option value="langgraph_test_gen">LangGraph Test Case Agent (Parallel + Self-Correcting)</option>
+              <option value="langgraph_spec_review">LangGraph Spec Review (Parallel)</option>
+              <option value="langgraph_api_test">LangGraph API Test Agent (Self-Healing)</option>
               <option value="visual_qa">Visual QA Agent (Screenshots + AI Vision)</option>
             </select>
             <span id="workflowDesc" class="muted" style="font-size:12px">Generate and execute API tests from a spec</span>

@@ -97,27 +97,33 @@ def extract_text_from_bytes(filename: str | None, mime_type: str | None, data: b
 
         d = docx.Document(data)  # NOTE: python-docx expects a path or file-like. We'll fallback below.
 
-    # PDF
+    # PDF — try pdfplumber first, fall back to pypdf so a missing optional
+    # dep never blocks ingestion outright.
     if ext == ".pdf" or (mime_type == "application/pdf"):
+        import io
+        # Attempt 1: pdfplumber (best layout fidelity)
         try:
             import pdfplumber
-        except Exception as e:
-            raise RuntimeError("pdfplumber not installed. Run: pip install pdfplumber") from e
-
-        # write temp then read (pdfplumber needs a file)
-        tmp = SPEC_FILES_DIR / f"_tmp_{_uuid()}.pdf"
-        tmp.write_bytes(data)
+            with pdfplumber.open(io.BytesIO(data)) as pdf:
+                out = [(page.extract_text() or "") for page in pdf.pages]
+            text = "\n\n".join(out).strip()
+            if text:
+                return text
+        except Exception:
+            pass
+        # Attempt 2: pypdf
         try:
-            out = []
-            with pdfplumber.open(str(tmp)) as pdf:
-                for page in pdf.pages:
-                    out.append(page.extract_text() or "")
-            return "\n\n".join(out)
-        finally:
-            try:
-                tmp.unlink(missing_ok=True)
-            except Exception:
-                pass
+            from pypdf import PdfReader
+            reader = PdfReader(io.BytesIO(data))
+            out = [(p.extract_text() or "") for p in reader.pages]
+            text = "\n\n".join(out).strip()
+            if text:
+                return text
+        except Exception as e:
+            raise RuntimeError(
+                "PDF parsing failed. Install one of: pip install pdfplumber  OR  pip install pypdf"
+            ) from e
+        raise RuntimeError("PDF appears to contain no extractable text (possibly scanned image).")
 
     # DOCX fallback (python-docx needs file)
     if ext == ".docx":

@@ -472,11 +472,15 @@ async function createSpecFromUpload(file, extraText) {
 async function runAgentWithSpecId(spec_id) {
   const data = await fetchJson("/api/run", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "X-Progress-Id": window._progressId || "",
+    },
     body: JSON.stringify({
       spec_id,
       task_type: "generate_testcases",
       workflow_name: (document.getElementById("workflowSelect")||{}).value || "api_test",
+      progress_id: window._progressId || "",
       options: {},
       use_rag: true,
       html: false,
@@ -484,6 +488,63 @@ async function runAgentWithSpecId(spec_id) {
     }),
   });
   return data;
+}
+
+/* -----------------------------
+   Live "THINKING..." progress (SSE)
+----------------------------- */
+// Pretty labels for LLM service names emitted by the backend.
+const _STAGE_LABELS = {
+  "run_start":                         "starting run",
+  "run_end":                           "finishing up",
+  "langgraph-tc-extract":              "extracting user stories",
+  "langgraph-tc-generate":             "generating test cases",
+  "langgraph-tc-reflect":              "reflecting on case quality",
+  "langgraph-review-completeness":     "analyzing completeness",
+  "langgraph-review-ambiguity":        "analyzing ambiguity",
+  "langgraph-review-testability":      "analyzing testability",
+  "langgraph-review-test_scenarios":   "generating test scenarios",
+  "langgraph-review-risk_assessment":  "assessing risk",
+  "langgraph-review-summary":          "synthesizing summary",
+  "langgraph-api-diagnose":            "diagnosing test failure",
+  "qa-agent-tc-extract":               "extracting user stories",
+  "qa-agent-tc-generate":              "generating test cases",
+};
+function _labelFor(service) {
+  if (!service) return "thinking";
+  if (_STAGE_LABELS[service]) return _STAGE_LABELS[service];
+  // Fallback — strip prefixes, dasherize
+  return service.replace(/^(qa-agent-|langgraph-)/, "").replace(/[-_]/g, " ");
+}
+function _setThinkingText(label) {
+  const el = document.getElementById("thinkingBadge");
+  if (!el) return;
+  el.innerHTML = `⏳ THINKING… <em style="opacity:0.85;font-style:italic;">${label}</em>`;
+}
+function _startProgressStream() {
+  _stopProgressStream();
+  const pid = (crypto?.randomUUID ? crypto.randomUUID() : Date.now() + "-" + Math.random().toString(36).slice(2));
+  window._progressId = pid;
+  try {
+    const es = new EventSource(`/api/v1/agents/progress?id=${encodeURIComponent(pid)}`);
+    window._progressES = es;
+    es.addEventListener("progress", (ev) => {
+      try {
+        const d = JSON.parse(ev.data);
+        if (d.stage === "llm_call" && d.detail) _setThinkingText(_labelFor(d.detail));
+        else if (d.stage === "run_start") _setThinkingText(_labelFor(d.detail) + " run");
+        else if (d.stage === "run_end")   _setThinkingText("finishing up");
+      } catch (_) {}
+    });
+    es.addEventListener("done", () => _stopProgressStream());
+    es.onerror = () => {/* silent — server may close as run ends */};
+  } catch (e) {
+    console.warn("progress SSE unavailable", e);
+  }
+}
+function _stopProgressStream() {
+  try { window._progressES?.close(); } catch (_) {}
+  window._progressES = null;
 }
 
 /* -----------------------------
@@ -500,6 +561,12 @@ function _setRunning(running) {
   if (execBtn) execBtn.style.display  = running ? "none" : "";
   if (stopBtn) stopBtn.style.display  = running ? "" : "none";
   if (badge)   badge.style.display    = running ? "" : "none";
+  if (running) {
+    _setThinkingText("preparing");
+    _startProgressStream();
+  } else {
+    _stopProgressStream();
+  }
 }
 
 function stopRun() {
@@ -507,6 +574,7 @@ function stopRun() {
     window._runAbortController.abort();
     window._runAbortController = null;
   }
+  _stopProgressStream();
   _setRunning(false);
   const resultDiv = document.getElementById("executionResult");
   if (resultDiv) {
