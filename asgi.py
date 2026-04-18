@@ -129,6 +129,16 @@ tenant_app.include_router(rag_router, prefix="/api/v1/rag", tags=["RAG"])
 from src.api.routes.agents_stream import router as agents_stream_router
 tenant_app.include_router(agents_stream_router, prefix="/api/v1/agents", tags=["Agents"])
 
+# Autonomous QA agent (Phase 1+: URL-only run mode with pause-for-creds).
+# Safe to no-op if the module fails to import (e.g. missing playwright on
+# the host) — keep the rest of the API surface working.
+try:
+    from src.api.routes.autonomous import router as autonomous_router
+    tenant_app.include_router(autonomous_router, prefix="/api/v1/auto", tags=["Autonomous"])
+except Exception as _e:
+    import logging as _logging
+    _logging.getLogger(__name__).warning("autonomous_router_unavailable", extra={"error": str(_e)})
+
 # Agent APIs — LAST because it has /{path:path} catch-all
 tenant_app.include_router(agent_api_router)
 

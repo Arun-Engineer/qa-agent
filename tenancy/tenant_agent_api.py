@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Request, Depends, HTTPException
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import select, delete
 from auth.db import get_db, SessionLocal
@@ -483,7 +483,20 @@ async def run_agent_endpoint(
     if not spec:
         raise HTTPException(status_code=400, detail="Provide either 'spec' or 'spec_id'")
 
-    workflow_name = _detect_workflow(spec, task_type=task_type)
+    # Explicit UI selection always wins over content-based detection.
+    # Only fall back to auto-detect when the client didn't specify one
+    # (or picked the ambiguous "api_test"/"default" legacy placeholder
+    # AND the spec clearly isn't an API spec).
+    ui_workflow = (body.get("workflow_name") or "").strip()
+    if ui_workflow:
+        try:
+            from agent.workflows import get_workflow as _gw
+            _gw(ui_workflow)  # validate name
+            workflow_name = ui_workflow
+        except Exception:
+            workflow_name = _detect_workflow(spec, task_type=task_type)
+    else:
+        workflow_name = _detect_workflow(spec, task_type=task_type)
 
     # ── Live-progress wiring ───────────────────────────────────────────
     # If the client opened an SSE progress channel with X-Progress-Id,

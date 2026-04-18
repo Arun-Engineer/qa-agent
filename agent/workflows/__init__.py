@@ -37,10 +37,7 @@ def _ensure_registry():
     except Exception:
         LangGraphApiTestWorkflow = None  # type: ignore
 
-    _REGISTRY["api_test"] = ApiTestWorkflow
-    _REGISTRY["ui_test"] = UiTestWorkflow
-    _REGISTRY["spec_review"] = SpecReviewWorkflow
-    _REGISTRY["test_case_gen"] = TestCaseGenerationWorkflow
+    # Primary (LangGraph) workflows — parallel, self-correcting, self-healing.
     if LangGraphTestGenWorkflow is not None:
         _REGISTRY["langgraph_test_gen"] = LangGraphTestGenWorkflow
     if LangGraphSpecReviewWorkflow is not None:
@@ -48,11 +45,28 @@ def _ensure_registry():
     if LangGraphApiTestWorkflow is not None:
         _REGISTRY["langgraph_api_test"] = LangGraphApiTestWorkflow
 
+    # Non-LangGraph workflows with no advanced equivalent yet.
+    _REGISTRY["ui_test"] = UiTestWorkflow
     _REGISTRY["visual_qa"] = VisualQaWorkflow
-    # Legacy aliases — keep existing behaviour: generate_testcases used to mean
-    # "run API tests". New test_case_gen is the dedicated generator.
-    _REGISTRY["generate_testcases"] = ApiTestWorkflow
-    _REGISTRY["default"] = ApiTestWorkflow
+
+    # Legacy names → redirected to LangGraph replacements so old clients /
+    # stored defaults keep working transparently.
+    if LangGraphApiTestWorkflow is not None:
+        _REGISTRY["api_test"] = LangGraphApiTestWorkflow
+        _REGISTRY["generate_testcases"] = LangGraphApiTestWorkflow
+        _REGISTRY["default"] = LangGraphApiTestWorkflow
+    else:
+        _REGISTRY["api_test"] = ApiTestWorkflow
+        _REGISTRY["generate_testcases"] = ApiTestWorkflow
+        _REGISTRY["default"] = ApiTestWorkflow
+    if LangGraphSpecReviewWorkflow is not None:
+        _REGISTRY["spec_review"] = LangGraphSpecReviewWorkflow
+    else:
+        _REGISTRY["spec_review"] = SpecReviewWorkflow
+    if LangGraphTestGenWorkflow is not None:
+        _REGISTRY["test_case_gen"] = LangGraphTestGenWorkflow
+    else:
+        _REGISTRY["test_case_gen"] = TestCaseGenerationWorkflow
 
 
 def get_workflow(name: str) -> BaseWorkflow:

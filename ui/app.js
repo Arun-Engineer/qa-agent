@@ -548,6 +548,274 @@ function _stopProgressStream() {
 }
 
 /* -----------------------------
+   Autonomous QA (URL-only) mode
+----------------------------- */
+
+// Show/hide the URL panel based on workflow selection.
+// Human-friendly titles per workflow — the h2 at the top of the executor
+// should match what the user is actually about to do.
+const _WORKFLOW_TITLES = {
+  autonomous_qa:          "Autonomous QA",
+  langgraph_test_gen:     "Generate Test Cases",
+  langgraph_spec_review:  "Review Specification",
+  langgraph_api_test:     "Run API Tests",
+  ui_test:                "Run UI Tests",
+  visual_qa:              "Run Visual QA",
+};
+
+window._toggleAutoUI = function () {
+  const wf = (document.getElementById("workflowSelect") || {}).value || "";
+  const panel = document.getElementById("autoPanel");
+  const specArea = document.getElementById("specInput");
+  const uploadPill = document.querySelector(".upload-row");
+  const title = document.getElementById("executorTitle");
+  const isAuto = wf === "autonomous_qa";
+  if (panel) panel.style.display = isAuto ? "" : "none";
+  // Hide the traditional spec inputs when in autonomous mode to make the
+  // intent crystal clear: URL only.
+  if (specArea) specArea.style.display = isAuto ? "none" : "";
+  if (uploadPill) uploadPill.style.display = isAuto ? "none" : "";
+  if (title) title.textContent = _WORKFLOW_TITLES[wf] || "Execute";
+};
+document.addEventListener("DOMContentLoaded", () => {
+  try { window._toggleAutoUI(); } catch (_) {}
+});
+
+window._currentAutoRunId = null;
+window._autoStatusTimer = null;
+window._autoEventSource = null;
+
+function _showCredModal(prompt) {
+  const m = document.getElementById("credModal");
+  if (!m) return;
+  m.style.display = "flex";
+  const role = document.getElementById("credRole");
+  const hint = document.getElementById("credModalHint");
+  if (role && prompt?.role) role.value = prompt.role;
+  if (hint) {
+    hint.textContent = prompt?.hint
+      ? `${prompt.hint}${prompt.page_url ? " — " + prompt.page_url : ""}`
+      : "The agent paused — please share credentials for the detected login.";
+  }
+  const uname = document.getElementById("credUsername");
+  if (uname) uname.focus();
+}
+function _hideCredModal() {
+  const m = document.getElementById("credModal");
+  if (m) m.style.display = "none";
+}
+
+window._submitCreds = async function () {
+  const rid = window._currentAutoRunId;
+  if (!rid) return;
+  const role = (document.getElementById("credRole") || {}).value || "user";
+  const username = (document.getElementById("credUsername") || {}).value || "";
+  const password = (document.getElementById("credPassword") || {}).value || "";
+  const totp_seed = (document.getElementById("credTotp") || {}).value || "";
+  try {
+    await fetchJson(`/api/v1/auto/${encodeURIComponent(rid)}/credentials`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role, username, password, totp_seed }),
+    });
+    // Clear the password fields immediately — never leave them in the DOM.
+    ["credPassword", "credTotp"].forEach(id => {
+      const el = document.getElementById(id); if (el) el.value = "";
+    });
+    _hideCredModal();
+  } catch (e) {
+    alert("Failed to submit credentials: " + e.message);
+  }
+};
+
+window._cancelCreds = async function () {
+  const rid = window._currentAutoRunId;
+  _hideCredModal();
+  if (!rid) return;
+  try {
+    await fetchJson(`/api/v1/auto/${encodeURIComponent(rid)}/cancel`, { method: "POST" });
+  } catch (_) {}
+};
+
+function _renderAutoProgress(status) {
+  const resultDiv = document.getElementById("executionResult");
+  if (!resultDiv) return;
+  const events = (status.events || []).slice(-15);
+  const stageList = events
+    .map(ev => `<div style="font-size:12px;color:#94a3b8;padding:2px 0;">
+                  <span style="color:#64748b;">${new Date(ev.ts * 1000).toLocaleTimeString()}</span>
+                  &nbsp;<strong style="color:#e2e8f0;">${escapeHtml(ev.stage || "")}</strong>
+                  ${ev.url ? `<span style="color:#64748b;"> ${escapeHtml(ev.url)}</span>` : ""}
+                </div>`)
+    .join("");
+  const sum = status.model_summary || {};
+  const sev = status.findings_by_severity || {};
+  const cls = status.classification || {};
+  const plan = status.plan_summary || {};
+  const isDone = ["DONE", "FAILED", "CANCELLED"].includes(status.state);
+
+  const sevBadge = (label, count, color) =>
+    `<span style="display:inline-block;padding:2px 8px;margin-right:6px;border-radius:10px;background:${color};color:#fff;font-size:11px;font-weight:600;">${label}: ${count || 0}</span>`;
+
+  const severitySection = `
+    <div class="section">
+      <div class="section-title">Oracle Severity</div>
+      <div style="padding:4px 0;">
+        ${sevBadge("Confirmed", sev.confirmed, "#dc2626")}
+        ${sevBadge("Universal", sev.universal, "#ea580c")}
+        ${sevBadge("Configured", sev.configured, "#ca8a04")}
+        ${sevBadge("Inferred", sev.inferred, "#2563eb")}
+        ${sevBadge("Noise", sev.noise, "#475569")}
+      </div>
+      ${cls.max_severity ? `<div class="muted" style="margin-top:6px;">Max severity: <strong style="color:#e2e8f0;">${escapeHtml(cls.max_severity)}</strong> • Critical: ${cls.critical ?? 0} • Attention: ${cls.attention ?? 0} • Signals: ${cls.signals ?? 0}</div>` : ""}
+    </div>
+  `;
+
+  const planKinds = plan.by_kind || {};
+  const planSection = Object.keys(planKinds).length ? `
+    <div class="section">
+      <div class="section-title">Test Plan (${plan.total ?? 0} steps • avg confidence ${plan.avg_confidence ? (plan.avg_confidence * 100).toFixed(0) + "%" : "—"})</div>
+      <div style="padding:4px 0;font-size:12px;color:#cbd5e1;">
+        ${Object.entries(planKinds).map(([k, v]) => `<span style="display:inline-block;margin-right:10px;"><code style="color:#60a5fa;">${escapeHtml(k)}</code>: ${v}</span>`).join("")}
+      </div>
+    </div>
+  ` : "";
+
+  const replayBtn = isDone && status.state === "DONE"
+    ? `<button class="btn btn-secondary" onclick="window._replayAutoRun('${escapeHtml(status.run_id)}')" style="margin-top:8px;">🔁 Replay This Run</button>`
+    : "";
+
+  resultDiv.innerHTML = `
+    <div class="card card-run">
+      <div class="card-head">
+        <div class="head-left">
+          <div class="kicker">Autonomous Run</div>
+          <div class="title">${escapeHtml(status.url || "")}</div>
+          <div class="muted" style="margin-top:4px;">Run ID: <code>${escapeHtml(status.run_id || "")}</code> • State: <strong>${escapeHtml(status.state || "")}</strong> • Stage: ${escapeHtml(status.stage || "")}</div>
+          ${replayBtn}
+        </div>
+      </div>
+      <div class="metrics">
+        <div class="metric"><div class="metric-label">Pages Discovered</div><div class="metric-value">${sum.pages ?? 0}</div></div>
+        <div class="metric"><div class="metric-label">Auth Walls</div><div class="metric-value">${sum.auth_walls ?? 0}</div></div>
+        <div class="metric"><div class="metric-label">API Endpoints</div><div class="metric-value">${sum.api_endpoints ?? 0}</div></div>
+        <div class="metric"><div class="metric-label">Findings</div><div class="metric-value">${status.findings_count ?? 0}</div></div>
+      </div>
+      ${planSection}
+      ${severitySection}
+      <div class="section">
+        <div class="section-title">Recent Activity</div>
+        <div style="max-height:240px;overflow:auto;border:1px solid #1e293b;border-radius:6px;padding:8px;background:#0b1220;">
+          ${stageList || `<div class="muted">Starting…</div>`}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+window._loadObservabilityAdapters = async function() {
+  try {
+    const r = await fetchJson("/api/v1/auto/observability-adapters");
+    const sel = document.getElementById("autoPlatformType");
+    if (!sel || !r || !Array.isArray(r.adapters)) return;
+    // Keep the "Auto-detect" first option, clear the rest, then append.
+    // We deliberately do NOT render vendor display names here — the UI
+    // should not advertise specific third-party products. Only show the
+    // generic category and let the backend map to the right adapter.
+    while (sel.options.length > 1) sel.remove(1);
+    // Collapse adapter list into neutral category labels.
+    const hasObservability = r.adapters.some(a => a.name !== "generic");
+    if (hasObservability) {
+      const opt = document.createElement("option");
+      opt.value = "__observability__";
+      opt.textContent = "Agent-observability platform";
+      sel.appendChild(opt);
+    }
+    const generic = document.createElement("option");
+    generic.value = "generic";
+    generic.textContent = "Standard web application";
+    sel.appendChild(generic);
+    // Remember the full adapter list server-side — when the user picks
+    // "Agent-observability platform" we still auto-detect the specific
+    // vendor on the backend based on the crawled URL/content.
+    window._observabilityAdapters = r.adapters;
+  } catch (_) {}
+};
+// Populate on load.
+try { window._loadObservabilityAdapters(); } catch (_) {}
+
+window._replayAutoRun = async function(runId) {
+  try {
+    const r = await fetchJson(`/api/v1/auto/replay`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ run_id: runId }),
+    });
+    if (r && r.run_id) {
+      window._currentAutoRunId = r.run_id;
+      _setRunning(true);
+      window._autoStatusTimer = setInterval(() => _pollAutoStatus(r.run_id), 1500);
+      _pollAutoStatus(r.run_id);
+    }
+  } catch (e) {
+    alert("Replay failed: " + e.message);
+  }
+};
+
+async function _pollAutoStatus(runId) {
+  try {
+    const status = await fetchJson(`/api/v1/auto/${encodeURIComponent(runId)}/status`);
+    _renderAutoProgress(status);
+    const pending = status.pending_prompts || [];
+    if (status.state === "NEEDS_CREDS" && pending.length) {
+      _showCredModal(pending[0]);
+    } else {
+      _hideCredModal();
+    }
+    if (["DONE", "FAILED", "CANCELLED"].includes(status.state)) {
+      clearInterval(window._autoStatusTimer);
+      window._autoStatusTimer = null;
+      _setRunning(false);
+    }
+  } catch (e) {
+    console.warn("auto status poll failed", e);
+  }
+}
+
+async function runAutonomous() {
+  const url = (document.getElementById("autoUrl") || {}).value?.trim();
+  const maxPages = parseInt((document.getElementById("autoMaxPages") || {}).value || "30", 10);
+  const maxDepth = parseInt((document.getElementById("autoMaxDepth") || {}).value || "3", 10);
+  const platformType = (document.getElementById("autoPlatformType") || {}).value || "";
+  const resultDiv = document.getElementById("executionResult");
+
+  if (!url || !/^https?:\/\//i.test(url)) {
+    resultDiv.innerHTML = `<div class="card card-error">Please enter a valid URL (http:// or https://).</div>`;
+    return;
+  }
+
+  _setRunning(true);
+  resultDiv.innerHTML = renderSpecThinking();
+
+  try {
+    const started = await fetchJson("/api/v1/auto/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url, scope: { max_pages: maxPages, max_depth: maxDepth, platform_type: platformType || undefined } }),
+    });
+    window._currentAutoRunId = started.run_id;
+    // Poll status every 1.5s — the server also exposes SSE at /{id}/stream
+    // which we can swap in once this is validated.
+    window._autoStatusTimer = setInterval(() => _pollAutoStatus(started.run_id), 1500);
+    _pollAutoStatus(started.run_id);
+  } catch (e) {
+    console.error(e);
+    resultDiv.innerHTML = `<div class="card card-error">❌ ${escapeHtml(e.message)}</div>`;
+    _setRunning(false);
+  }
+}
+
+/* -----------------------------
    Run Spec
 ----------------------------- */
 
@@ -574,6 +842,18 @@ function stopRun() {
     window._runAbortController.abort();
     window._runAbortController = null;
   }
+  // Cancel any autonomous run that's currently active.
+  if (window._currentAutoRunId) {
+    const rid = window._currentAutoRunId;
+    window._currentAutoRunId = null;
+    try {
+      fetch(`/api/v1/auto/${encodeURIComponent(rid)}/cancel`, { method: "POST" });
+    } catch (_) {}
+  }
+  if (window._autoStatusTimer) {
+    clearInterval(window._autoStatusTimer);
+    window._autoStatusTimer = null;
+  }
   _stopProgressStream();
   _setRunning(false);
   const resultDiv = document.getElementById("executionResult");
@@ -586,6 +866,12 @@ function stopRun() {
 }
 
 async function runSpec() {
+  // Autonomous URL-only mode branches off the normal spec-driven flow.
+  const selectedWf = (document.getElementById("workflowSelect") || {}).value || "";
+  if (selectedWf === "autonomous_qa") {
+    return runAutonomous();
+  }
+
   const specTextEl = document.getElementById("specInput");
   const spec = (specTextEl?.value || "").trim();
   const resultDiv = document.getElementById("executionResult");
@@ -615,6 +901,17 @@ async function runSpec() {
     const artifacts = pickArtifacts(data);
     const failed = data.failed ?? 0;
 
+    // Generation-only workflows have no pass/fail semantics — they
+    // produce a *count* of generated cases. Switch the metric card
+    // labels so the UI doesn't claim "14 tests passed" when nothing
+    // was actually executed.
+    const selectedWf = (document.getElementById("workflowSelect")||{}).value || "";
+    const isGeneration = /test_case_gen|langgraph_test_gen|spec_review|langgraph_spec_review/.test(selectedWf);
+    // Pull total_cases / total_stories out of the nested report, if any.
+    const _reportObj = data.report || data.result || {};
+    const totalCases   = _reportObj.total_cases   ?? data.total_cases   ?? null;
+    const totalStories = _reportObj.total_stories ?? data.total_stories ?? null;
+
     // Auto-clear spec text after successful run
     if (failed === 0) {
       const specEl = document.getElementById("specInput");
@@ -637,10 +934,24 @@ async function runSpec() {
               spec_id
             )}</code></div>
           </div>
-          <div class="${badgeClass(failed)}">${statusText(failed)}</div>
+          <div class="${badgeClass(failed)}">${isGeneration ? "GENERATED" : statusText(failed)}</div>
         </div>
 
         <div class="metrics">
+          ${isGeneration ? `
+          <div class="metric">
+            <div class="metric-label">Test Cases Generated</div>
+            <div class="metric-value good">${totalCases ?? "-"}</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">User Stories</div>
+            <div class="metric-value">${totalStories ?? (data.total_steps ?? "-")}</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Errors</div>
+            <div class="metric-value bad">${data.failed ?? 0}</div>
+          </div>
+          ` : `
           <div class="metric">
             <div class="metric-label">Passed</div>
             <div class="metric-value good">${data.passed ?? 0}</div>
@@ -653,6 +964,7 @@ async function runSpec() {
             <div class="metric-label">Steps</div>
             <div class="metric-value">${data.total_steps ?? "-"}</div>
           </div>
+          `}
           <div class="metric">
             <div class="metric-label">When</div>
             <div class="metric-value">${escapeHtml(
@@ -679,6 +991,11 @@ async function runSpec() {
     resultDiv.innerHTML = `<div class="card card-error">❌ ${escapeHtml(
       e.message
     )}</div>`;
+  } finally {
+    // Always release the THINKING badge + Stop button, whether the run
+    // succeeded, threw, or was aborted.
+    _setRunning(false);
+    window._runAbortController = null;
   }
 }
 

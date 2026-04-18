@@ -142,21 +142,19 @@
 
       <!-- EXECUTOR -->
       <div id="executor" class="hidden">
-        <h2>Execute User Story</h2>
+        <h2 id="executorTitle">Execute User Story</h2>
         <div style="margin-bottom:10px">
           <label class="admin-label" style="margin-bottom:6px;display:block">Workflow</label>
           <div style="display:inline-flex;gap:12px;align-items:center">
-            <select id="workflowSelect" class="admin-select" style="width:280px" onchange="var d=document.getElementById('workflowDesc');if(d)d.textContent={'api_test':'Generate and execute API tests from a spec','ui_test':'Crawl site + generate Playwright browser tests','spec_review':'Analyze spec for gaps, ambiguity & testability (no execution)','test_case_gen':'Generate structured test cases from a spec (no execution)','langgraph_test_gen':'LangGraph: parallel self-correcting test case generation','langgraph_spec_review':'LangGraph: parallel 5-dimensional spec review + synthesis','langgraph_api_test':'LangGraph: self-healing API tests (generate → run → diagnose → regenerate)','visual_qa':'Screenshot pages and analyze visuals with GPT-4o vision'}[this.value]||''">
-              <option value="api_test">API Test Agent</option>
-              <option value="ui_test">UI Test Agent</option>
-              <option value="spec_review">Spec Review Agent</option>
-              <option value="test_case_gen">Test Case Generation Agent</option>
-              <option value="langgraph_test_gen">LangGraph Test Case Agent (Parallel + Self-Correcting)</option>
-              <option value="langgraph_spec_review">LangGraph Spec Review (Parallel)</option>
-              <option value="langgraph_api_test">LangGraph API Test Agent (Self-Healing)</option>
+            <select id="workflowSelect" class="admin-select" style="width:360px" onchange="var d=document.getElementById('workflowDesc');if(d)d.textContent={'autonomous_qa':'Paste a URL. The agent explores the site and tests it end-to-end.','langgraph_test_gen':'Generate test cases from a user story or spec.','langgraph_spec_review':'Automated multi-dimensional review of a specification.','langgraph_api_test':'Self-healing API tests with automatic regeneration.','ui_test':'Crawl the site and run automated browser tests.','visual_qa':'Capture screenshots and analyse them visually.'}[this.value]||'';if(window._toggleAutoUI)window._toggleAutoUI();">
+              <option value="autonomous_qa">🤖 Autonomous QA (URL only — explores + tests A-to-Z)</option>
+              <option value="langgraph_test_gen">Test Case Generation Agent (Parallel + Self-Correcting)</option>
+              <option value="langgraph_spec_review">Spec Review Agent (Parallel 5-Dim)</option>
+              <option value="langgraph_api_test">API Test Agent (Self-Healing)</option>
+              <option value="ui_test">UI Test Agent (Playwright)</option>
               <option value="visual_qa">Visual QA Agent (Screenshots + AI Vision)</option>
             </select>
-            <span id="workflowDesc" class="muted" style="font-size:12px">Generate and execute API tests from a spec</span>
+            <span id="workflowDesc" class="muted" style="font-size:12px">Paste a URL. The agent explores the site and tests it end-to-end.</span>
           </div>
         </div>
         <div class="upload-row">
@@ -169,6 +167,57 @@
           <div class="muted" style="margin-top:6px;">Tip: upload OR paste below. If both are provided, upload wins.</div>
         </div>
         <textarea id="specInput" placeholder="Paste user story..."></textarea>
+
+        <!-- Autonomous QA — URL-only entry (visible only when that workflow is picked) -->
+        <div id="autoPanel" style="display:none;margin-top:14px;padding:14px;border:1px solid #334155;border-radius:8px;background:rgba(15,23,42,0.4);">
+          <label class="admin-label" style="display:block;margin-bottom:6px;">🌐 Target URL</label>
+          <input id="autoUrl" type="url" placeholder="https://app.example.com"
+                 style="width:100%;padding:10px 12px;background:#0f172a;border:1px solid #334155;color:#e2e8f0;border-radius:6px;font-size:14px;" />
+          <div class="muted" style="margin-top:8px;font-size:12px;">
+            Just the URL — the agent will explore the site, detect auth walls, and ask for credentials inline if needed.
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:18px;margin-top:14px;align-items:flex-end;">
+            <label style="font-size:12px;color:#94a3b8;display:flex;flex-direction:column;gap:4px;">
+              <span>Max pages</span>
+              <input id="autoMaxPages" type="number" min="1" max="200" value="30"
+                     style="width:90px;background:#0f172a;border:1px solid #334155;color:#e2e8f0;border-radius:6px;padding:6px 8px;" />
+            </label>
+            <label style="font-size:12px;color:#94a3b8;display:flex;flex-direction:column;gap:4px;">
+              <span>Max depth</span>
+              <input id="autoMaxDepth" type="number" min="1" max="6" value="3"
+                     style="width:90px;background:#0f172a;border:1px solid #334155;color:#e2e8f0;border-radius:6px;padding:6px 8px;" />
+            </label>
+            <label style="font-size:12px;color:#94a3b8;display:flex;flex-direction:column;gap:4px;">
+              <span>Platform profile</span>
+              <select id="autoPlatformType" style="min-width:220px;background:#0f172a;border:1px solid #334155;color:#e2e8f0;border-radius:6px;padding:6px 8px;">
+                <option value="">Auto-detect</option>
+                <!-- dynamically populated from /api/v1/auto/observability-adapters -->
+              </select>
+            </label>
+          </div>
+        </div>
+
+        <!-- Credential prompt modal — shown when a run is paused needing creds -->
+        <div id="credModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;">
+          <div style="background:#0f172a;border:1px solid #334155;border-radius:12px;padding:24px;min-width:380px;max-width:520px;box-shadow:0 10px 40px rgba(0,0,0,0.5);">
+            <h3 style="margin:0 0 6px 0;color:#e2e8f0;">🔐 Credentials needed</h3>
+            <div class="muted" id="credModalHint" style="font-size:12px;margin-bottom:14px;">The agent paused — please share credentials for the detected login.</div>
+            <label style="display:block;font-size:12px;color:#94a3b8;margin-top:8px;">Role</label>
+            <input id="credRole" type="text" value="user" style="width:100%;padding:8px 10px;background:#1e293b;border:1px solid #334155;color:#e2e8f0;border-radius:6px;" />
+            <label style="display:block;font-size:12px;color:#94a3b8;margin-top:8px;">Username / Email / Phone</label>
+            <input id="credUsername" type="text" style="width:100%;padding:8px 10px;background:#1e293b;border:1px solid #334155;color:#e2e8f0;border-radius:6px;" />
+            <label style="display:block;font-size:12px;color:#94a3b8;margin-top:8px;">Password</label>
+            <input id="credPassword" type="password" style="width:100%;padding:8px 10px;background:#1e293b;border:1px solid #334155;color:#e2e8f0;border-radius:6px;" />
+            <label style="display:block;font-size:12px;color:#94a3b8;margin-top:8px;">TOTP seed (optional)</label>
+            <input id="credTotp" type="text" placeholder="Leave blank if no 2FA" style="width:100%;padding:8px 10px;background:#1e293b;border:1px solid #334155;color:#e2e8f0;border-radius:6px;" />
+            <div style="margin-top:16px;display:flex;gap:10px;justify-content:flex-end;">
+              <button type="button" onclick="window._cancelCreds&&window._cancelCreds()" style="background:#334155;color:#e2e8f0;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;">Cancel run</button>
+              <button type="button" onclick="window._submitCreds&&window._submitCreds()" style="background:#2563eb;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:600;">Continue</button>
+            </div>
+            <div class="muted" style="font-size:11px;margin-top:12px;opacity:0.7;">Credentials are held in memory for this run only, wiped when the run ends.</div>
+          </div>
+        </div>
+
         <div id="runBtnGroup" style="display:inline-flex;align-items:center;gap:12px;margin-top:12px;">
           <button id="executeBtn" onclick="runSpec()" style="background:#238636;color:white;border:none;padding:10px 28px;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;">
             ▶ Execute
@@ -408,7 +457,20 @@
   <div class="footer-branding">
     AI QA Platform &bull; Powered by FastAPI &bull; AWS Fargate
   </div>
-  <script src="/static/app.js"></script>
+  <!-- Cache-bust via timestamp so edits to app.js show up on a normal reload. -->
+  <script>window._aiqaVer = Date.now();</script>
+  <script src="/static/app.js" id="aiqaAppScript"></script>
+  <script>
+    // If the above loaded from cache and the ver didn't match, force reload once.
+    (function(){
+      const s = document.getElementById("aiqaAppScript");
+      if (!s || s.src.includes("?v=")) return;
+      s.parentNode.removeChild(s);
+      const fresh = document.createElement("script");
+      fresh.src = "/static/app.js?v=" + window._aiqaVer;
+      document.body.appendChild(fresh);
+    })();
+  </script>
   <script src="/static/revamp.js"></script>
 <script src="/static/admin_users.js"></script>
 </body>
